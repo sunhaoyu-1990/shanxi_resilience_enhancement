@@ -115,6 +115,23 @@
 
 ---
 
+### 8. shanxi-resilience-git
+**文件**: `.claude/skills/shanxi-resilience-git/SKILL.md`
+
+**功能**:
+- 项目 Git 操作规范化管理
+- Commit message 模板（约定式提交）
+- 分支管理与大文件排除
+- GitHub 协作流程
+- 常用操作命令速查
+
+**适用场景**:
+- 提交代码前检查
+- Git 操作规范化
+- 新人上手参考
+
+---
+
 ## 🚀 Skill 快速调用
 
 ```
@@ -138,6 +155,9 @@ skill: shanxi-resilience-path-query
 
 # 单元测试生成
 skill: shanxi-resilience-unit-test-writer
+
+# Git 操作
+skill: shanxi-resilience-git
 ```
 
 ---
