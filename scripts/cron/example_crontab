@@ -1,0 +1,16 @@
+# ============================================================
+# Crontab Schedule Examples
+# ============================================================
+# Add these to your crontab (crontab -e)
+
+# Run full pipeline every day at 2 AM
+# 0 2 * * * cd /path/to/project && /path/to/.venv/bin/python -m src.jobs.run_pipeline --scheme-id DEFAULT --start-date $(date -d yesterday +\%Y-\%m-\%d) --end-date $(date +\%Y-\%m-\%d) >> outputs/logs/cron_pipeline.log 2>&1
+
+# Run M0 weekly on Sunday at midnight
+# 0 0 * * 0 cd /path/to/project && /path/to/.venv/bin/python -m src.jobs.run_m0 --scheme-id WEEKLY --start-date $(date -d '7 days ago' +\%Y-\%m-\%d) --end-date $(date +\%Y-\%m-\%d) >> outputs/logs/cron_m0.log 2>&1
+
+# Database backup daily at 3 AM
+# 0 3 * * * pg_dump -h localhost -U postgres shaanxi_resilience > outputs/backups/db_$(date +\%Y\%m\%d).sql
+
+# Log rotation weekly
+# 0 4 * * 0 find outputs/logs -name "*.log" -mtime +30 -delete

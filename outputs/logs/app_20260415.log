@@ -1,0 +1,91 @@
+2026-04-15 17:35:15 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 17:35:15 | src.app.hive                   | ERROR    | test_hive_connection:100 | Hive 连接测试失败: Password should be set if and only if in LDAP or CUSTOM mode; Remove password or use one of those modes
+2026-04-15 17:35:33 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 17:35:33 | src.app.hive                   | ERROR    | test_hive_connection:109 | PyHive 未安装: No module named 'thrift_sasl'
+2026-04-15 17:35:33 | src.app.hive                   | INFO     | test_hive_connection:110 | 请运行: uv add pyhive sasl thrift-sasl
+2026-04-15 17:35:45 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 17:35:45 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 17:35:45 | pyhive.hive                    | INFO     | execute:475 | SELECT 1
+2026-04-15 17:35:46 | src.app.hive                   | INFO     | test_hive_connection:105 | Hive 连接测试成功
+2026-04-15 17:35:46 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 17:35:46 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 17:35:46 | pyhive.hive                    | INFO     | execute:475 | SHOW TABLES LIKE 'gstx_%'
+2026-04-15 17:35:47 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 17:35:47 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 17:35:47 | pyhive.hive                    | INFO     | execute:475 | DESCRIBE gstx_exit_with_min_fee202602
+2026-04-15 17:35:47 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 17:35:48 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 17:35:48 | pyhive.hive                    | INFO     | execute:475 | SELECT COUNT(*) FROM gstx_exit_with_min_fee202602
+2026-04-15 17:36:09 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 17:36:09 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 17:36:09 | pyhive.hive                    | INFO     | execute:475 | SELECT * FROM gstx_exit_with_min_fee202602 LIMIT 5
+2026-04-15 17:36:10 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 17:36:10 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 17:36:11 | pyhive.hive                    | INFO     | execute:475 | DESCRIBE gstx_exit_with_min_fee202602
+2026-04-15 17:36:35 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 17:36:36 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 17:36:36 | pyhive.hive                    | INFO     | execute:475 | SHOW TABLES
+2026-04-15 18:33:12 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_with_filter:247 | Reading filtered sample: SIZE(SPLIT(intervalgroup, '\\|')) >= 3
+2026-04-15 18:33:12 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 18:33:12 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 18:33:12 | pyhive.hive                    | INFO     | execute:475 | 
+        SELECT *
+        FROM (
+            SELECT *,
+                   SIZE(SPLIT(intervalgroup, '\\|')) as section_cnt
+            FROM dbbase2026.gstx_exit_with_min_fee202603
+            WHERE SIZE(SPLIT(intervalgroup, '\\|')) >= 3
+        ) t
+        LIMIT 100
+    
+2026-04-15 18:33:45 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-15 18:33:45 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-15 18:34:23 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_with_filter:247 | Reading filtered sample: SIZE(SPLIT(intervalgroup, '\\|')) >= 3
+2026-04-15 18:34:23 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 18:34:23 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 18:34:23 | pyhive.hive                    | INFO     | execute:475 | 
+        SELECT *
+        FROM (
+            SELECT *,
+                   SIZE(SPLIT(intervalgroup, '\\|')) as section_cnt
+            FROM dbbase2026.gstx_exit_with_min_fee202603
+            WHERE SIZE(SPLIT(intervalgroup, '\\|')) >= 3
+        ) t
+        LIMIT 100
+    
+2026-04-15 18:34:50 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-15 18:34:50 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-15 18:34:51 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-15 18:34:51 | src.modules.m2_od_flow.hive_repository | INFO     | save_fix_results_to_json:209 | Saved 0 results to D:\BaiduSyncdisk\shy_product\outputs\interval_fix\fix_results_20260415_183423.json
+2026-04-15 18:35:52 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_with_filter:247 | Reading filtered sample: SIZE(SPLIT(intervalgroup, "\|")) >= 3
+2026-04-15 18:35:52 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 18:35:52 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 18:35:52 | pyhive.hive                    | INFO     | execute:475 | 
+        SELECT *
+        FROM (
+            SELECT *,
+                   SIZE(SPLIT(intervalgroup, '\\|')) as section_cnt
+            FROM dbbase2026.gstx_exit_with_min_fee202603
+            WHERE SIZE(SPLIT(intervalgroup, "\|")) >= 3
+        ) t
+        LIMIT 5
+    
+2026-04-15 18:38:16 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 100
+2026-04-15 18:38:16 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 18:38:16 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 18:38:16 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 100
+2026-04-15 18:38:17 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 100 records from Hive
+2026-04-15 18:38:17 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-15 18:38:18 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-15 18:38:18 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-15 18:38:25 | src.modules.m2_od_flow.hive_repository | INFO     | save_fix_results_to_json:209 | Saved 100 results to D:\BaiduSyncdisk\shy_product\outputs\interval_fix\fix_results_20260415_183816.json
+2026-04-15 18:39:33 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-15 18:42:39 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 100
+2026-04-15 18:42:39 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-15 18:42:39 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-15 18:42:40 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 100
+2026-04-15 18:42:41 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 100 records from Hive
+2026-04-15 18:42:41 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-15 18:42:41 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-15 18:42:41 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-15 18:42:46 | src.modules.m2_od_flow.hive_repository | INFO     | save_fix_results_to_json:209 | Saved 100 results to D:\BaiduSyncdisk\shy_product\outputs\interval_fix\fix_results_20260415_184239.json

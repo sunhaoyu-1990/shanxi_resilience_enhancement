@@ -1,0 +1,144 @@
+#+TITLE: 字段字典
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 目标
+本文档用于统一维护本项目核心字段的名称、含义、口径和备注。
+所有正式进入主链的字段，原则上都应在本字典中可查。
+
+* 2. 使用原则
+- 统一字段名
+- 统一字段含义
+- 统一字段口径
+- 避免同义不同名、同名不同义
+
+* 3. 字段字典模板
+后续新增字段时，建议按以下结构补充：
+
+| 字段名 | 中文名称 | 类型建议 | 适用层 | 含义 | 口径说明 | 示例值 | 备注 |
+|--------+----------+----------+--------+------+----------+--------+------|
+
+* 4. 当前核心字段字典
+
+** 4.1 方案相关字段
+
+| 字段名        | 中文名称     | 类型建议      | 适用层        | 含义 | 口径说明 | 示例值 | 备注 |
+|---------------+--------------+---------------+---------------+------+----------+--------+------|
+| scheme_id     | 施工方案ID   | varchar(64)   | dim/dwd/dws/ads/app | 施工方案唯一标识 | 当前建议格式 SCH_yyyymmdd_nnn | SCH_20260403_001 | 核心主键 |
+| scheme_name   | 施工方案名称 | varchar(255)  | dim           | 施工方案名称 | 来自方案主表 | 西汉改扩建方案A |      |
+| scheme_status | 方案状态     | varchar(32)   | dim           | 当前方案状态 | 如 draft / active / closed | active | 枚举待统一 |
+| project_code  | 项目标识     | varchar(64)   | dim           | 所属项目或工程编码 | 后续可与业务系统对接 | PROJ_XH_001 |      |
+
+** 4.2 收费单元相关字段
+
+| 字段名          | 中文名称         | 类型建议      | 适用层        | 含义 | 口径说明 | 示例值 | 备注 |
+|-----------------+------------------+---------------+---------------+------+----------+--------+------|
+| section_id      | 收费单元ID       | varchar(64)   | dim/dwd/dws/ads/app | 收费单元统一唯一标识 | 维表主键 | SEC_001 | 核心主键 |
+| section_name    | 收费单元名称     | varchar(255)  | dim/app       | 收费单元名称 | 标准名称 | 西安北-咸阳东 |      |
+| section_number  | 单一路径标号     | varchar(64)   | dim/dwd/dws   | 同一单一路径上的收费单元共用编号 | 用于路径归并与映射辅助 | 1002 | 不替代 section_id |
+| lane_cnt        | 基础车道数       | integer       | dim           | 收费单元基础车道数 | 不含施工占用影响前 | 4 |      |
+| from_section_id | 起始收费单元ID   | varchar(64)   | dim           | 拓扑关系中的起点收费单元ID | 用于拓扑关系表 | SEC_001 |      |
+| to_section_id   | 下一收费单元ID   | varchar(64)   | dim           | 拓扑关系中的下一收费单元ID | 一对多关系可出现多行 | SEC_002 |      |
+
+** 4.3 收费站相关字段
+
+| 字段名         | 中文名称     | 类型建议      | 适用层      | 含义 | 口径说明 | 示例值 | 备注 |
+|----------------+--------------+---------------+-------------+------+----------+--------+------|
+| station_id     | 收费站ID     | varchar(64)   | dim/dwd/dws/ads/app | 收费站统一唯一标识 | 维表主键 | ST001 | 核心主键 |
+| station_name   | 收费站名称   | varchar(255)  | dim/app     | 收费站标准名称 | 统一命名 | 西安北 |      |
+| station_type   | 收费站类型   | varchar(32)   | dim         | 收费站类型 | 如入口站/出口站/互通相关 | entry_exit | 枚举待定 |
+| longitude      | 经度         | numeric(12,6) | dim         | 收费站经度 | 若有空间点，可与 geometry 配套 | 108.923456 |      |
+| latitude       | 纬度         | numeric(12,6) | dim         | 收费站纬度 | 若有空间点，可与 geometry 配套 | 34.123456 |      |
+
+** 4.4 OD 与路径相关字段
+
+| 字段名           | 中文名称         | 类型建议      | 适用层        | 含义 | 口径说明 | 示例值 | 备注 |
+|------------------+------------------+---------------+---------------+------+----------+--------+------|
+| od_id            | OD标识           | varchar(128)  | dwd/dws/ads/app | 起终点对统一标识 | 当前建议 entry_station_id + exit_station_id | ST001_ST099 | 核心主键之一 |
+| path_id          | 路径标识         | varchar(128)  | dwd/dws/ads/app | 某 OD 下的一条路径唯一标识 | 可来自外部接口或内部生成 | PATH_ST001_ST099_01 | 核心主键之一 |
+| original_path_id | 原始路径标识     | varchar(128)  | dws/ads/app   | 受影响 OD 的原始主路径 | 用于候选路径比较基准 | PATH_ST001_ST099_00 |      |
+| path_sections    | 路径收费单元序列 | text          | dwd           | 路径经过的收费单元序列 | 建议使用可解析结构，如 JSON/分隔串 | ["SEC_1","SEC_2"] |      |
+| candidate_rank   | 候选路径排序     | integer       | dws/ads/app   | 候选路径在排序中的顺位 | 排序口径需文档化 | 1 |      |
+| control_section_id | 分流管控单元ID | varchar(64)   | dws/ads/app   | 替代路径与原路径的分叉点收费单元 | 用于分流控制 | SEC_088 |      |
+
+** 4.5 流量与能力相关字段
+
+| 字段名           | 中文名称         | 类型建议       | 适用层        | 含义 | 口径说明 | 示例值 | 备注 |
+|------------------+------------------+----------------+---------------+------+----------+--------+------|
+| vehicle_type     | 车型编码         | varchar(32)    | dim/dwd/dws/ads/app | 统一车型类别 | 后续需统一枚举 | truck_1 | 核心维度 |
+| flow_cnt         | 流量数量         | numeric(18,2)  | dws/ads/app   | 某粒度下车辆数 | 自然量 | 1250 |      |
+| flow_pcu         | 流量当量         | numeric(18,2)  | dws/ads/app   | 某粒度下折算后的 PCU | 按车型折算 | 1460.50 |      |
+| capacity_pcu     | 可通行当量       | numeric(18,2)  | dim/dws       | 某收费单元在施工条件下的可通行能力 | 当量口径 | 1800.00 |      |
+| demand_pcu       | 需求当量         | numeric(18,2)  | dws           | 历史基准需求折算后的 PCU | 供需比较用 | 2200.00 | 可选扩展字段 |
+| impact_ratio     | 影响比例         | numeric(10,4)  | dws/ads/app   | 施工影响程度比例 | 建议范围 [0,1] | 0.3200 |      |
+| impacted_flow_cnt| 受影响流量自然量 | numeric(18,2)  | dws/ads/app   | 受施工影响的自然量车辆数 | 来自供需修正 | 320.00 |      |
+| impacted_flow_pcu| 受影响流量当量   | numeric(18,2)  | dws/ads/app   | 受施工影响的当量值 | 来自供需修正 | 410.50 |      |
+| adjusted_flow_cnt| 修正后流量自然量 | numeric(18,2)  | dws/ads/app   | 用于后续分流测算的修正流量 | 结果输入 M4/M5 | 280.00 |      |
+
+** 4.6 金额与里程相关字段
+
+| 字段名             | 中文名称           | 类型建议       | 适用层      | 含义 | 口径说明 | 示例值 | 备注 |
+|--------------------+--------------------+----------------+-------------+------+----------+--------+------|
+| mileage            | 里程               | numeric(18,2)  | dwd/dws/ads/app | 路径或通行记录对应里程 | 单位需统一 | 120.50 |      |
+| original_mileage   | 原路径里程         | numeric(18,2)  | dws/ads/app | 原路径总里程 | 候选路径比较基准 | 120.50 |      |
+| candidate_mileage  | 候选路径里程       | numeric(18,2)  | dws/ads/app | 替代路径总里程 | 与原路径对比 | 132.80 |      |
+| mileage_diff       | 里程差             | numeric(18,2)  | dws/ads/app | 候选路径减原路径的差值 | candidate - original | 12.30 |      |
+| fee_amount         | 通行费金额         | numeric(18,2)  | dwd/ads/app | 某条通行或路径的通行费 | 单位元 | 85.00 |      |
+| original_fee       | 原路径通行费       | numeric(18,2)  | dws/ads/app | 原路径通行费 | 比较基准 | 85.00 |      |
+| candidate_fee      | 候选路径通行费     | numeric(18,2)  | dws/ads/app | 替代路径通行费 | 与原路径比较 | 97.00 |      |
+| fee_diff           | 通行费差           | numeric(18,2)  | dws/ads/app | 候选路径减原路径的通行费差值 | candidate - original | 12.00 |      |
+| original_jk_fee    | 原路径交控通行费   | numeric(18,2)  | dws/ads/app | 原路径交控范围内通行费 | 项目特有口径 | 60.00 |      |
+| candidate_jk_fee   | 候选路径交控通行费 | numeric(18,2)  | dws/ads/app | 替代路径交控范围内通行费 | 项目特有口径 | 72.00 |      |
+| jk_fee_diff        | 交控通行费差       | numeric(18,2)  | dws/ads/app | 候选路径减原路径的交控通行费差值 | candidate - original | 12.00 |      |
+| original_fee_amount| 原方案金额         | numeric(18,2)  | ads/app     | 按流量计算的原方案总金额 | 用于结果测算 | 12000.00 |      |
+| diverted_fee_amount| 绕行后金额         | numeric(18,2)  | ads/app     | 按候选路径和规则测算后的金额 | 用于结果测算 | 10800.00 |      |
+| fee_change_amount  | 金额变化           | numeric(18,2)  | ads/app     | 绕行后金额与原金额差值 | diverted - original 或按统一规则 | -1200.00 | 需统一口径 |
+
+** 4.7 规则与标识字段
+
+| 字段名         | 中文名称         | 类型建议      | 适用层      | 含义 | 口径说明 | 示例值 | 备注 |
+|----------------+------------------+---------------+-------------+------+----------+--------+------|
+| rule_id        | 规则ID           | varchar(64)   | dim/dws/ads | 规则表唯一标识 | 适用于能力规则、绕行规则等 | RULE_CAPACITY_001 |      |
+| source_flag    | 来源标识         | varchar(32)   | dwd/dws/ads/app | 数据或结果来源标志 | actual/filled/rule/api | actual | 核心可追溯字段 |
+| impact_type    | 影响类型         | varchar(32)   | ads/app     | 金额或结果变化类型 | increase/decrease/no_change | decrease | 枚举待统一 |
+| diversion_ratio| 绕行比例         | numeric(10,4) | dim/ads     | 经验规则下的绕行采用比例 | 建议范围 [0,1] | 0.8000 |      |
+| recommendation_level | 推荐等级    | varchar(32)   | ads/app     | 分流方案推荐级别 | high/medium/low 等 | high | 枚举待统一 |
+
+** 4.8 时间与版本字段
+
+| 字段名           | 中文名称       | 类型建议      | 适用层              | 含义 | 口径说明 | 示例值 | 备注 |
+|------------------+----------------+---------------+---------------------+------+----------+--------+------|
+| stat_date        | 统计日期       | date          | dws/ads/app         | 自然日统计日期 | 日粒度核心时间字段 | 2026-04-03 |      |
+| stat_hour        | 统计小时       | integer       | dws                 | 小时粒度 | 0~23 | 8 | 可选 |
+| start_date       | 开始日期       | date          | dim/dwd             | 开始日期 | 施工方案或规则生效开始 | 2026-04-01 |      |
+| end_date         | 结束日期       | date          | dim/dwd             | 结束日期 | 施工方案或规则结束日期 | 2026-04-30 |      |
+| valid_start_date | 有效开始日期   | date          | dim/dwd             | 记录生效开始时间 | 历史版本管理 | 2025-01-01 |      |
+| valid_end_date   | 有效结束日期   | date          | dim/dwd             | 记录生效结束时间 | 历史版本管理 | 2025-12-31 |      |
+| created_at       | 创建时间       | timestamp     | 全层                | 数据创建时间 | 落表时间 | 2026-04-03 10:00:00 |      |
+| updated_at       | 更新时间       | timestamp     | 全层                | 数据更新时间 | 更新覆盖时间 | 2026-04-03 10:10:00 |      |
+| batch_no         | 批次号         | varchar(64)   | dws/ads/app         | 一次批处理结果批次标识 | 用于重跑追踪 | BATCH_20260403101010 | 可选 |
+| version_no       | 版本号         | varchar(32)   | dim/dws/ads/app     | 结果或规则版本号 | 用于版本管理 | VERSION_01 | 可选 |
+
+* 5. 当前重点提醒
+
+** 5.1 section_id 与 section_number 不能混用
+- section_id：收费单元唯一标识
+- section_number：单一路径归并辅助编号
+
+二者语义不同，不能替代使用。
+
+** 5.2 od_id 与 path_id 不能互代
+- od_id：起终点对
+- path_id：某个 OD 下的一条路径
+
+** 5.3 fee_amount 与 fee_change_amount 不能混淆
+- fee_amount：绝对金额
+- fee_change_amount：变化量
+
+* 6. 当前 TODO
+- [ ] 补充 vehicle_type 枚举说明
+- [ ] 补充 construction_mode 字段定义
+- [ ] 补充 speed_limit / distance_limit 字段定义
+- [ ] 补充 relation_type 字段定义
+- [ ] 补充 recommendation_level 枚举
+- [ ] 结合真实表进一步补全字段类型

@@ -1,0 +1,245 @@
+#+TITLE: 陕交控多路段改扩建韧性提升项目（一期）后端算法工程
+#+AUTHOR: 孙浩宇
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 项目简介
+本项目用于支撑“多路段改扩建及养护工程并发施工条件下”的通行服务保障分析与测算。
+一期目标是先完成数据算法层面的最小可用版本（MVP），形成可运行的后端算法主链路，为施工方案分析、分流路径生成、通行费影响测算提供基础能力。
+
+当前工程定位：
+- 以 Python + SQL 为主
+- 以离线批处理任务为主
+- 以 PostgreSQL + PostGIS 为主数据库
+- 以查询服务为辅，不做在线复杂重算
+- 以“先可交付、后增强”为原则推进
+
+* 一期范围
+当前一期主链路包括以下模块：
+- M0 数据工程
+- M1 通行能力评估
+- M2 流量与OD迁移统计补全
+- M3 交通影响分析
+- M4 分流路径优化
+- M5 通行费影响测算
+
+说明：
+- 当前版本以统计、经验规则、工程化实现为主
+- 当前版本不追求完整研究闭环
+- 高阶寻优、效果评估、动态优化等能力后续再逐步增强
+
+* 一期目标输出
+一期重点输出包括但不限于：
+- 数据底座与标准化数据表
+- 收费单元施工映射结果
+- 施工期间收费单元可通行当量
+- 施工影响下的OD迁移与流量修正结果
+- 候选绕行路径及分流管控单元
+- 通行费增收/减收测算结果
+- 最优绕行方案
+
+* 技术栈
+** 后端
+- Python 3.11+
+- SQLAlchemy（连接与事务管理）
+- 原生 SQL（核心统计与分析逻辑）
+- FastAPI（轻量查询服务，可选）
+
+** 数据库
+- PostgreSQL 15+
+- PostGIS
+
+** 配置与文档
+- YAML 配置
+- Org 文档
+
+** 调度
+- 开发阶段：命令行脚本
+- 联调阶段：总控 runner
+- 试运行阶段：cron
+
+* 仓库目录
+#+begin_example
+configs/        配置文件
+docs/           项目文档
+sql/            DDL / DML / 校验 SQL
+src/            正式工程代码
+research/       研究与试验代码
+scripts/        初始化与运行脚本
+outputs/        日志、导出结果、临时输出
+#+end_example
+
+* 工程原则
+- 先定表，再定逻辑，再写代码
+- SQL 承担核心统计和落表逻辑
+- Python 负责参数、编排、日志、校验
+- 工程代码与研究代码严格分离
+- 所有输出表必须先登记口径
+- 所有模块必须先明确输入表、输出表、中间表
+
+* 当前关键基础约束
+- 收费单元单一路径标号字段 = section_number
+- section_number 是后续路径合并、收费单元归并、断面路径映射的重要基础字段
+- 路网拓扑当前按“本收费单元ID -> 下一个收费单元ID（一对多）”方式接入
+
+* 开发启动顺序
+1. 建立项目目录结构
+2. 完成基础配置与连接
+3. 完成表口径总表
+4. 完成模块输入输出定义
+5. 编写 DDL / 基础 SQL
+6. 编写离线任务编排代码
+7. 开展模块联调
+8. 接入查询服务
+
+* 风险提示
+当前阶段以下内容可能尚未最终确认：
+- 核心实体最终主键体系
+- 各模块最终输入输出字段全集
+- 部分经验规则参数
+- 路径接口返回格式与完整性
+- 历史数据版本差异处理细节
+
+因此当前代码和文档设计遵循“骨架先行、口径可迭代”的原则。
+
+* 联系与维护
+- 项目负责人：孙浩宇
+- 当前版本：v0.1.0
+
+* 快速开始
+
+** 环境准备
+
+#+begin_src bash
+# 创建虚拟环境（推荐使用 uv）
+uv venv .venv
+
+# 激活虚拟环境
+# Windows PowerShell
+.venv\Scripts\activate
+# Windows CMD
+.venv\Scripts\activate.bat
+# Linux / macOS
+source .venv/bin/activate
+
+# 安装项目及依赖
+uv pip install -e .
+#+end_src
+
+** 数据库配置
+
+#+begin_src bash
+# 复制环境变量模板
+cp .env.example .env
+
+# 编辑 .env，填入实际的数据库连接信息
+# DB_HOST=127.0.0.1
+# DB_PORT=5432
+# DB_USER=postgres
+# DB_PASSWORD=your_password
+# DB_NAME=shaanxi_resilience
+#+end_src
+
+** 初始化数据库表结构
+
+#+begin_src bash
+# 执行初始化脚本（需确保数据库已创建）
+bash scripts/init_db.sh
+# 或在 psql 中直接执行 sql/ddl/ 下的所有 DDL 文件
+#+end_src
+
+** 运行流水线
+
+#+begin_src bash
+# 完整流水线（M0 -> M5）
+run-pipeline --scheme-id SCH_001 --start-date 2024-01-01 --end-date 2024-12-31
+
+# 运行指定模块
+run-m0 --scheme-id SCH_001 --start-date 2024-01-01 --end-date 2024-12-31
+run-m1 --scheme-id SCH_001 --start-date 2024-01-01 --end-date 2024-12-31
+run-m2 --scheme-id SCH_001 --start-date 2024-01-01 --end-date 2024-12-31
+run-m3 --scheme-id SCH_001 --start-date 2024-01-01 --end-date 2024-12-31
+run-m4 --scheme-id SCH_001 --start-date 2024-01-01 --end-date 2024-12-31
+run-m5 --scheme-id SCH_001 --start-date 2024-01-01 --end-date 2024-12-31
+
+# 覆盖已有数据重跑
+run-pipeline --scheme-id SCH_001 --start-date 2024-01-01 --end-date 2024-12-31 --overwrite
+
+# 出错时继续执行后续模块
+run-pipeline --scheme-id SCH_001 --start-date 2024-01-01 --end-date 2024-12-31 --continue-on-error
+#+end_src
+
+** 启动查询 API
+
+#+begin_src bash
+run-query-api
+# API 文档：http://localhost:8010/docs
+# 健康检查：http://localhost:8010/health
+#+end_src
+
+** 查看帮助
+
+#+begin_src bash
+run-pipeline --help
+run-m0 --help
+run-query-api --help
+#+end_src
+
+* 项目结构
+
+#+begin_example
+.
+├── configs/                  # YAML 配置文件
+│   ├── base.yaml             # 基础配置
+│   ├── db.yaml               # 数据库配置
+│   └── ...
+├── docs/                     # 项目文档（Org 格式）
+├── outputs/                  # 日志、导出结果、临时文件
+│   ├── logs/
+│   ├── exports/
+│   └── reports/
+├── research/                 # 研究与试验代码（与正式工程分离）
+├── scripts/                  # 初始化与运行脚本
+│   └── init_db.sh           # 数据库初始化脚本
+├── sql/                     # SQL 文件
+│   ├── checks/              # 数据校验 SQL
+│   ├── ddl/                # 表结构 DDL（ODS/DIM/DWD/DWS/ADS）
+│   └── dml/               # 数据处理 DML（按模块 m0~m5 拆分）
+├── src/                    # 正式工程代码
+│   ├── app/               # 应用核心（settings, db, enums, logger）
+│   ├── common/            # 公共组件（sql_runner, exceptions, validators）
+│   ├── jobs/              # 任务入口脚本
+│   │   ├── run_m0.py ~ run_m5.py    # 各模块独立运行入口
+│   │   └── run_pipeline.py         # 流水线总控
+│   ├── modules/           # M0~M5 业务模块
+│   │   └── m{N}_{name}/   # 每个模块含 task/service/repository/schema/checks
+│   └── services/         # 查询服务
+│       └── query_api/     # FastAPI 查询接口
+├── tests/                 # 测试代码
+│   └── unit/
+├── .env.example           # 环境变量模板
+├── .gitignore
+├── pyproject.toml        # Python 包配置
+└── README.org            # 本文件
+#+end_example
+
+* 核心模块说明
+
+| 模块 | 名称 | 主要职责 |
+|------|------|----------|
+| M0 | 数据工程 | ODS 数据加载、DIM 维表构建、方案映射、OD-路径映射 |
+| M1 | 通行能力评估 | 车道数折算、可用车道数计算、能力规则匹配 |
+| M2 | 流量与OD补全 | OD 流量统计、路段流量统计、SourceFlag 溯源 |
+| M3 | 交通影响分析 | 供需比计算、影响流量统计、影响等级判定 |
+| M4 | 分流路径优化 | 候选路径生成、里程差/收费差计算、分流管控点 |
+| M5 | 通行费影响测算 | 通行费增减计算、影响类型判定、方案汇总 |
+
+* 数据层级说明
+
+| 层级 | 用途 | 说明 |
+|------|------|------|
+| ODS | 原始数据层 | 外部数据直接入库 |
+| DIM | 维表层 | 路段、工程方案等维度信息 |
+| DWD | 明细事实层 | 路段能力、OD 流量等原子事实 |
+| DWS | 汇总事实层 | 按日期/路段/方案等维度的轻度汇总 |
+| ADS | 应用层 | 直接可用的分析结果 |

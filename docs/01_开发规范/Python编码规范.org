@@ -1,0 +1,296 @@
+#+TITLE: Python 编码规范
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 适用范围
+本文档适用于本项目所有正式 Python 工程代码，包括：
+- src/app/
+- src/common/
+- src/modules/
+- src/jobs/
+- src/services/
+
+不适用于：
+- research/ 下的一次性研究脚本
+- notebooks/ 下的临时验证代码
+- 仅用于本地排障的临时文件
+
+* 2. 总体原则
+** 2.1 Python 的职责
+本项目中 Python 主要负责：
+- 配置读取
+- 参数解析
+- SQL 执行编排
+- 任务调度封装
+- 结果导出
+- 查询服务封装
+- 日志输出
+- 数据校验调度
+
+不建议在 Python 中堆积大段复杂统计逻辑。
+复杂统计、聚合、落表逻辑优先放入 SQL。
+
+** 2.2 可读性优先
+当前阶段以“能稳定交付、能联调、能审查”为第一优先级。
+代码应优先保证：
+- 可读
+- 可定位问题
+- 可重跑
+- 可迭代
+
+暂不以极致抽象和炫技写法为目标。
+
+** 2.3 工程代码与研究代码分离
+- 正式工程代码放 `src/`
+- 探索性代码放 `research/`
+
+禁止把 research 中尚未收敛的逻辑直接复制到正式链路中而不做整理。
+
+* 3. 目录与文件组织规范
+
+** 3.1 模块目录规范
+每个模块目录建议包含：
+- task.py        模块主入口
+- service.py     模块核心编排逻辑
+- repository.py  数据访问封装
+- schema.py      数据结构定义
+- checks.py      校验逻辑
+
+** 3.2 任务入口规范
+所有命令行运行脚本统一放在：
+- src/jobs/
+
+例如：
+- run_m0.py
+- run_m1.py
+- run_pipeline.py
+
+命令行入口文件中禁止直接堆业务逻辑。
+
+** 3.3 公共能力位置
+- 配置：src/app/settings.py
+- 数据库连接：src/app/db.py
+- 日志：src/app/logger.py
+- 异常：src/app/exceptions.py
+- SQL 执行器：src/common/sql_runner.py
+
+* 4. 命名规范
+
+** 4.1 文件命名
+使用英文小写下划线：
+- good: run_m2.py
+- good: sql_runner.py
+- bad: RunM2.py
+- bad: SQLRunner.py
+
+** 4.2 变量命名
+- 使用英文小写下划线
+- 避免模糊缩写
+- 变量名应表达业务含义
+
+示例：
+- good: scheme_id
+- good: impacted_flow_cnt
+- bad: x
+- bad: tmp2
+- bad: aaaa
+
+** 4.3 函数命名
+函数名应是明确动作：
+- build_section_capacity_day
+- fetch_candidate_paths
+- check_output_consistency
+
+避免：
+- do_data
+- handle_all
+- process_stuff
+
+** 4.4 类命名
+类名使用大驼峰：
+- DatabaseConfig
+- ModuleRunContext
+- QueryResultSchema
+
+* 5. 类型标注规范
+所有正式函数必须写类型标注。
+
+示例：
+#+begin_src python
+def build_task_context(scheme_id: str, stat_date: str) -> dict[str, str]:
+    return {"scheme_id": scheme_id, "stat_date": stat_date}
+#+end_src
+
+建议：
+- 参数写类型
+- 返回值写类型
+- 对复杂结构可引入 dataclass 或 pydantic model
+
+* 6. 函数设计规范
+
+** 6.1 单一职责
+一个函数只做一件主要事情。
+
+例如：
+- 一个函数负责读取配置
+- 一个函数负责执行单个 SQL
+- 一个函数负责检查输出表
+
+不要一个函数既读配置、又拼 SQL、又执行、又导出、又发请求。
+
+** 6.2 长度控制
+建议：
+- 单个函数尽量控制在 30~80 行以内
+- 超过 100 行必须审视是否应拆分
+
+** 6.3 显式输入输出
+函数应通过参数显式接收输入，不依赖全局变量。
+函数返回值应明确，不要靠隐式副作用传递核心结果。
+
+* 7. 配置规范
+
+** 7.1 配置来源
+配置统一来自：
+- YAML 文件
+- .env 环境变量
+
+禁止：
+- 把数据库地址写死在代码中
+- 把用户名密码写死在代码中
+- 把不同环境的路径直接写死
+
+** 7.2 配置分层
+建议至少区分：
+- base.yaml
+- dev.yaml
+- prod.yaml
+
+** 7.3 敏感信息管理
+敏感信息只放：
+- .env
+- CI/CD 注入变量
+- 安全配置中心（后续）
+
+不得写入：
+- Git 仓库
+- 文档正文
+- 日志输出
+
+* 8. 数据库访问规范
+
+** 8.1 统一连接入口
+数据库连接统一从：
+- src/app/db.py
+获取
+
+** 8.2 SQL 执行方式
+建议：
+- SQLAlchemy 管连接和事务
+- 原生 SQL 负责核心逻辑
+- SQL 文件统一由 sql_runner.py 读取和执行
+
+** 8.3 事务控制
+以下场景建议开启显式事务：
+- 多步写表
+- 中间结果需保证一致性
+- 关键结果表覆盖重建
+
+** 8.4 禁止事项
+- 禁止在业务代码中散落大量裸连接
+- 禁止每个函数自己 new 一套数据库连接
+- 禁止无控制地自动提交关键写操作
+
+* 9. 日志规范
+
+** 9.1 必须使用 logger
+正式工程代码禁止使用 print 代替日志。
+
+** 9.2 日志最少应包含
+- module_code
+- task_id
+- scheme_id
+- input_table
+- output_table
+- affected_rows
+- duration_seconds
+- status
+
+** 9.3 日志级别
+- DEBUG：调试信息
+- INFO：正常流程节点
+- WARNING：可恢复问题
+- ERROR：失败或异常
+- CRITICAL：严重系统级故障
+
+* 10. 异常处理规范
+
+** 10.1 禁止裸 except
+禁止：
+#+begin_src python
+try:
+    ...
+except:
+    pass
+#+end_src
+
+** 10.2 异常分类
+建议至少分为：
+- ConfigError
+- DatabaseError
+- DataValidationError
+- BusinessRuleError
+- ExternalServiceError
+
+** 10.3 异常信息要求
+异常必须提供足够上下文：
+- 哪个模块
+- 哪个任务
+- 哪张表
+- 哪个关键参数
+- 哪一步失败
+
+* 11. 校验规范
+每个模块都必须配套校验逻辑，至少包括：
+- 输入存在性校验
+- 主键唯一性校验
+- 非空校验
+- 数值取值范围校验
+- 输出结果合理性校验
+
+建议校验逻辑放：
+- checks.py
+- sql/checks/
+
+* 12. 测试规范
+当前阶段至少保证：
+- 公共工具函数有单元测试
+- 关键模块有最小集成测试
+- 核心 SQL 有校验 SQL 或结果对照检查
+
+当前阶段不强制追求高覆盖率，但必须覆盖：
+- 配置读取
+- SQL 执行器
+- 模块主入口
+- 输出表关键约束
+
+* 13. 代码风格建议
+建议统一：
+- 4 空格缩进
+- 明确空行分隔逻辑块
+- import 分组
+- 不使用过度嵌套
+- 不写魔法数字，使用常量或配置项
+
+* 14. 禁止事项汇总
+- 禁止在正式代码里放一次性调试逻辑
+- 禁止把 research 脚本直接塞进 src/
+- 禁止函数无类型标注
+- 禁止硬编码环境差异
+- 禁止 print 替代 logger
+- 禁止裸 except
+- 禁止 main 中堆复杂业务逻辑
+
+* 15. 当前 TODO
+- [ ] 确定是否统一使用 pydantic v2
+- [ ] 确定 formatter / lint 工具（ruff / black / isort）
+- [ ] 确定测试工具链（pytest）

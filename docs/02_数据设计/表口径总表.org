@@ -1,0 +1,559 @@
+#+TITLE: 表口径总表
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 说明
+本文档用于统一登记项目中各层数据表的口径。
+所有正式进入工程主链的表，必须在本文件中登记后方可进入开发。
+
+统一原则：
+- 表名使用英文小写下划线
+- 表名前缀使用分层规则
+- 必须写明粒度、主键、来源、下游模块
+- 所有关键字段必须和《字段字典》保持一致
+
+当前分层定义：
+- ods_ 原始接入层
+- dim_ 维表层
+- dwd_ 明细标准层
+- dws_ 主题汇总层
+- ads_ 分析结果层
+- app_ 应用服务层
+
+* 1. 维表层
+
+** dim_section_info
+:PROPERTIES:
+:TABLE_LAYER: dim
+:MODULE: M0
+:STATUS: draft
+:END:
+
+*** 表用途
+收费单元标准维表，作为全项目收费单元统一主数据来源。
+
+*** 粒度
+单行粒度：一个收费单元一行
+
+*** 主键
+- section_id
+
+*** 关键字段
+- section_id
+- section_name
+- road_id
+- road_name
+- direction
+- start_station_id
+- end_station_id
+- lane_cnt
+- section_number
+- valid_start_date
+- valid_end_date
+- created_at
+- updated_at
+
+*** 特别说明
+- 必须包含 =section_number=
+- =section_number= 表示同一条单一路径上的收费单元归属同一编号
+- 该表后续用于路径归并、收费单元映射、断面分析
+
+*** 下游使用模块
+- M0
+- M1
+- M2
+- M3
+- M4
+- M5
+
+** dim_station_info
+:PROPERTIES:
+:TABLE_LAYER: dim
+:MODULE: M0
+:STATUS: draft
+:END:
+
+*** 表用途
+收费站标准维表。
+
+*** 粒度
+单行粒度：一个收费站一行
+
+*** 主键
+- station_id
+
+*** 关键字段
+- station_id
+- station_name
+- station_type
+- road_id
+- longitude
+- latitude
+- valid_start_date
+- valid_end_date
+
+** dim_road_topology
+:PROPERTIES:
+:TABLE_LAYER: dim
+:MODULE: M0
+:STATUS: draft
+:END:
+
+*** 表用途
+收费单元路网拓扑关系表。
+
+*** 粒度
+单行粒度：一个“本收费单元 -> 下一个收费单元”关系一行
+
+*** 主键
+- from_section_id
+- to_section_id
+- valid_start_date
+
+*** 关键字段
+- from_section_id
+- to_section_id
+- relation_type
+- road_id
+- direction
+- valid_start_date
+- valid_end_date
+- created_at
+- updated_at
+
+*** 备注
+当前已知拓扑基础结构为：
+- 本收费单元ID
+- 下一个收费单元ID
+- 一对多关系
+
+** dim_scheme_info
+:PROPERTIES:
+:TABLE_LAYER: dim
+:MODULE: M0
+:STATUS: draft
+:END:
+
+*** 表用途
+施工方案主表。
+
+*** 粒度
+单行粒度：一个施工方案一行
+
+*** 主键
+- scheme_id
+
+*** 关键字段
+- scheme_id
+- scheme_name
+- project_code
+- start_date
+- end_date
+- scheme_status
+- created_at
+- updated_at
+
+** dim_capacity_rule
+:PROPERTIES:
+:TABLE_LAYER: dim
+:MODULE: M1
+:STATUS: draft
+:END:
+
+*** 表用途
+车道数-通行当量规则表。
+
+*** 粒度
+单行粒度：一条规则一行
+
+*** 主键
+- rule_id
+
+*** 关键字段
+- rule_id
+- lane_cnt
+- vehicle_type
+- capacity_pcu
+- remark
+- valid_start_date
+- valid_end_date
+
+* 2. 明细标准层
+
+** dwd_single_trip_info
+:PROPERTIES:
+:TABLE_LAYER: dwd
+:MODULE: M0
+:STATUS: draft
+:END:
+
+*** 表用途
+单次通行标准明细表。
+
+*** 粒度
+单行粒度：一次通行记录一行
+
+*** 主键
+- trip_id
+
+*** 关键字段
+- trip_id
+- vehicle_id
+- vehicle_type
+- entry_station_id
+- exit_station_id
+- entry_time
+- exit_time
+- path_id
+- fee_amount
+- mileage
+- created_at
+- updated_at
+
+** dwd_scheme_section_map
+:PROPERTIES:
+:TABLE_LAYER: dwd
+:MODULE: M0
+:STATUS: draft
+:END:
+
+*** 表用途
+施工方案与收费单元映射表。
+
+*** 粒度
+单行粒度：一个方案 × 一个收费单元 × 一个有效时间段
+
+*** 主键
+- scheme_id
+- section_id
+- valid_start_date
+
+*** 关键字段
+- scheme_id
+- section_id
+- lane_occupied_cnt
+- construction_mode
+- speed_limit
+- distance_limit
+- valid_start_date
+- valid_end_date
+- created_at
+- updated_at
+
+** dwd_od_path_map
+:PROPERTIES:
+:TABLE_LAYER: dwd
+:MODULE: M0
+:STATUS: draft
+:END:
+
+*** 表用途
+OD 与路径映射关系标准表。
+
+*** 粒度
+单行粒度：一个 OD × 一条路径
+
+*** 主键
+- od_id
+- path_id
+
+*** 关键字段
+- od_id
+- path_id
+- entry_station_id
+- exit_station_id
+- path_sections
+- source_flag
+- created_at
+- updated_at
+
+* 3. 主题汇总层
+
+** dws_section_capacity_day
+:PROPERTIES:
+:TABLE_LAYER: dws
+:MODULE: M1
+:STATUS: draft
+:END:
+
+*** 表用途
+施工期间收费单元日可通行当量结果表。
+
+*** 粒度
+单行粒度：收费单元 × 日期 × 车型
+
+*** 主键
+- section_id
+- stat_date
+- vehicle_type
+
+*** 关键字段
+- section_id
+- stat_date
+- vehicle_type
+- capacity_pcu
+- scheme_id
+- rule_id
+- created_at
+- updated_at
+
+** dws_section_od_flow_day
+:PROPERTIES:
+:TABLE_LAYER: dws
+:MODULE: M2
+:STATUS: draft
+:END:
+
+*** 表用途
+收费单元-OD-日期-车型粒度流量统计表。
+
+*** 粒度
+单行粒度：收费单元 × OD × 日期 × 车型
+
+*** 主键
+- section_id
+- od_id
+- stat_date
+- vehicle_type
+
+*** 关键字段
+- section_id
+- od_id
+- stat_date
+- vehicle_type
+- flow_cnt
+- flow_pcu
+- source_flag
+- created_at
+- updated_at
+
+*** 备注
+后续路径归并时需结合 =section_number= 使用。
+
+** dws_section_flow_day
+:PROPERTIES:
+:TABLE_LAYER: dws
+:MODULE: M2
+:STATUS: draft
+:END:
+
+*** 表用途
+收费单元日流量汇总表。
+
+*** 粒度
+单行粒度：收费单元 × 日期 × 车型
+
+*** 主键
+- section_id
+- stat_date
+- vehicle_type
+
+*** 关键字段
+- section_id
+- stat_date
+- vehicle_type
+- flow_cnt
+- flow_pcu
+- created_at
+- updated_at
+
+** dws_impacted_od_flow_day
+:PROPERTIES:
+:TABLE_LAYER: dws
+:MODULE: M3
+:STATUS: draft
+:END:
+
+*** 表用途
+施工影响下受影响OD及迁移流量结果表。
+
+*** 粒度
+单行粒度：方案 × 日期 × OD × 车型
+
+*** 主键
+- scheme_id
+- stat_date
+- od_id
+- vehicle_type
+
+*** 关键字段
+- scheme_id
+- stat_date
+- od_id
+- vehicle_type
+- impacted_flow_cnt
+- impacted_flow_pcu
+- impact_ratio
+- adjusted_flow_cnt
+- created_at
+- updated_at
+
+** dws_od_candidate_path
+:PROPERTIES:
+:TABLE_LAYER: dws
+:MODULE: M4
+:STATUS: draft
+:END:
+
+*** 表用途
+OD 候选替代路径表。
+
+*** 粒度
+单行粒度：方案 × OD × 候选路径
+
+*** 主键
+- scheme_id
+- od_id
+- path_id
+
+*** 关键字段
+- scheme_id
+- od_id
+- path_id
+- control_section_id
+- original_mileage
+- candidate_mileage
+- original_fee
+- candidate_fee
+- original_jk_fee
+- candidate_jk_fee
+- is_recommended
+- created_at
+- updated_at
+
+* 4. 分析结果层
+
+** ads_od_diversion_plan
+:PROPERTIES:
+:TABLE_LAYER: ads
+:MODULE: M4
+:STATUS: draft
+:END:
+
+*** 表用途
+OD 分流方案结果表。
+
+*** 粒度
+单行粒度：方案 × OD × 推荐路径
+
+*** 主键
+- scheme_id
+- od_id
+- path_id
+
+*** 关键字段
+- scheme_id
+- od_id
+- path_id
+- control_section_id
+- diversion_reason
+- mileage_diff
+- fee_diff
+- jk_fee_diff
+- created_at
+- updated_at
+
+** ads_toll_impact_result
+:PROPERTIES:
+:TABLE_LAYER: ads
+:MODULE: M5
+:STATUS: draft
+:END:
+
+*** 表用途
+通行费影响测算结果表。
+
+*** 粒度
+单行粒度：方案 × 日期 × OD × 车型
+
+*** 主键
+- scheme_id
+- stat_date
+- od_id
+- vehicle_type
+
+*** 关键字段
+- scheme_id
+- stat_date
+- od_id
+- vehicle_type
+- original_fee_amount
+- diverted_fee_amount
+- fee_change_amount
+- impact_type
+- created_at
+- updated_at
+
+** ads_scheme_summary
+:PROPERTIES:
+:TABLE_LAYER: ads
+:MODULE: M5
+:STATUS: draft
+:END:
+
+*** 表用途
+施工方案汇总结果表。
+
+*** 粒度
+单行粒度：一个方案一行
+
+*** 主键
+- scheme_id
+
+*** 关键字段
+- scheme_id
+- impacted_section_cnt
+- impacted_od_cnt
+- total_fee_increase
+- total_fee_decrease
+- recommended_plan_cnt
+- created_at
+- updated_at
+
+* 5. 应用服务层
+
+** app_scheme_result_summary
+:PROPERTIES:
+:TABLE_LAYER: app
+:MODULE: QUERY
+:STATUS: draft
+:END:
+
+*** 表用途
+供查询服务读取的方案汇总结果视图/表。
+
+*** 粒度
+单行粒度：一个方案一行
+
+** app_od_path_compare
+:PROPERTIES:
+:TABLE_LAYER: app
+:MODULE: QUERY
+:STATUS: draft
+:END:
+
+*** 表用途
+供前端展示某 OD 原路径与替代路径对比结果。
+
+*** 粒度
+单行粒度：方案 × OD × 路径
+
+** app_scheme_section_impact
+:PROPERTIES:
+:TABLE_LAYER: app
+:MODULE: QUERY
+:STATUS: draft
+:END:
+
+*** 表用途
+供前端查询某方案受影响收费单元结果。
+
+*** 粒度
+单行粒度：方案 × 收费单元
+
+* TODO 列表
+- [ ] 补充字段字典文档
+- [ ] 补充各表字段类型
+- [ ] 明确主键编码规范
+- [ ] 明确 vehicle_type 统一字典
+- [ ] 明确日期与批次版本规则

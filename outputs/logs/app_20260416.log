@@ -1,0 +1,116 @@
+2026-04-16 12:31:34 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 100
+2026-04-16 12:31:34 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-16 13:10:12 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 100
+2026-04-16 13:10:12 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-16 13:10:12 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-16 13:10:13 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 100
+2026-04-16 13:10:14 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 100 records from Hive
+2026-04-16 13:10:14 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 13:10:14 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 13:10:17 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 13:10:27 | src.modules.m2_od_flow.hive_repository | INFO     | save_fix_results_to_json:209 | Saved 100 results to D:\BaiduSyncdisk\shy_product\outputs\interval_fix\fix_results_20260416_131012.json
+2026-04-16 13:14:26 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 13:14:26 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-16 13:14:27 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-16 13:14:27 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 13:14:28 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 5 records from Hive
+2026-04-16 13:14:28 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 13:14:28 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 13:14:28 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 13:22:21 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 13:22:21 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-16 13:22:21 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-16 13:22:21 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 13:22:22 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 5 records from Hive
+2026-04-16 13:22:22 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 13:22:22 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 13:22:22 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 13:24:06 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 13:24:07 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 13:24:07 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 13:31:07 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 13:31:07 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-16 13:31:07 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-16 13:31:07 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 13:31:08 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 5 records from Hive
+2026-04-16 13:31:08 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 13:31:08 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 13:31:08 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 13:31:49 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 13:31:50 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 13:31:50 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 13:33:01 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 13:33:01 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 13:33:01 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 13:33:29 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 13:33:29 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 13:33:29 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 13:34:42 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 13:34:42 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-16 13:34:42 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-16 13:34:42 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 13:34:43 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 5 records from Hive
+2026-04-16 13:34:43 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 13:34:43 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 13:34:43 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 13:36:05 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 10
+2026-04-16 13:36:05 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-16 13:36:05 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-16 13:36:05 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 10
+2026-04-16 13:36:06 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 10 records from Hive
+2026-04-16 13:36:06 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 13:36:06 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 13:36:07 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 14:08:12 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 14:08:13 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 14:08:13 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 14:09:48 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 10
+2026-04-16 14:09:48 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-16 14:09:48 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-16 14:09:49 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 10
+2026-04-16 14:09:50 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 10 records from Hive
+2026-04-16 14:09:50 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 14:09:50 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 14:09:50 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 14:46:45 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 14:46:45 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-16 14:46:46 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-16 14:46:46 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup, pathmileage FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 14:46:47 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 5 records from Hive
+2026-04-16 14:46:47 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 14:46:47 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 14:46:47 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 14:49:40 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 14:49:40 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 14:49:40 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 15:33:52 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 15:33:52 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 15:33:52 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 17:39:36 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 17:39:36 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 17:39:36 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 17:40:44 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 17:40:45 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 17:40:45 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 17:49:39 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 17:49:39 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 17:49:39 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 17:49:53 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 17:49:53 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 17:49:54 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 18:06:43 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 18:06:43 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 18:06:43 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 18:06:43 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 18:06:43 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-16 18:06:43 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-16 18:06:44 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 18:06:45 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 5 records from Hive
+2026-04-16 18:07:14 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:166 | Loading topology cache for version 202512...
+2026-04-16 18:07:14 | src.app.db                     | INFO     | get_engine:40 | 数据库引擎已创建
+2026-04-16 18:07:14 | src.modules.m2_od_flow.interval_fixer | INFO     | load_topology_cache:184 | Loaded 2765 topology entries
+2026-04-16 18:07:14 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:54 | Reading sample from Hive: SELECT tradeid, intervalgroup FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 18:07:14 | src.app.hive                   | INFO     | get_hive_connection:38 | Hive 连接配置
+2026-04-16 18:07:14 | pyhive.hive                    | INFO     | execute:475 | USE `dbbase2026`
+2026-04-16 18:07:14 | pyhive.hive                    | INFO     | execute:475 | SELECT tradeid, intervalgroup FROM dbbase2026.gstx_exit_with_min_fee202603 LIMIT 5
+2026-04-16 18:07:15 | src.modules.m2_od_flow.hive_repository | INFO     | read_sample_from_hive:65 | Read 5 records from Hive

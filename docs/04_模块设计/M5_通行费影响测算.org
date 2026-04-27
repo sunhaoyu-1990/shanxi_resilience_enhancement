@@ -1,0 +1,285 @@
+#+TITLE: M5 通行费影响测算模块设计
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 模块定位
+M5 是一期主链的最终结果模块。
+
+M5 负责在 M4 给出的候选替代路径结果基础上，结合“通行里程/金额增幅与绕行比例规则表”，计算：
+- 各 OD 最优绕行方案
+- 各 OD 通行费影响结果
+- 方案级增收/减收汇总结果
+
+当前阶段采用经验规则匹配方式进行测算，不做复杂行为选择模型。
+
+* 2. 当前阶段目标
+当前阶段 M5 的目标是：
+- 建立增幅与绕行比例规则表
+- 基于候选路径参数进行规则匹配
+- 输出各 OD 最优绕行方案
+- 输出分车型、分 OD、分方案的通行费影响结果
+- 输出方案汇总结果
+
+当前阶段不做：
+- 预约通行措施影响测算
+- 动态评估优化闭环
+- 行为响应概率精细建模
+- 实时反馈调优
+
+* 3. 输入
+** 3.1 上游输入表
+- dws_od_candidate_path
+- ads_od_diversion_plan（可选）
+- dws_impacted_od_flow_day
+
+** 3.2 规则输入表
+- dim_toll_diversion_rule（建议新增）
+
+** 3.3 输入说明
+M5 的关键输入是：
+- 候选路径相对原路径的里程、通行费、交控通行费变化
+- 受影响 OD 迁移流量
+- 经验绕行比例规则
+
+* 4. 输出
+** 4.1 核心输出表
+- ads_toll_impact_result
+- ads_scheme_summary
+
+** 4.2 可选扩展输出
+- ads_od_best_path_result
+- ads_vehicle_type_toll_impact
+- ads_toll_rule_match_log
+
+** 4.3 输出用途
+- 供前端展示方案级通行费影响结果
+- 供项目经理查看增收/减收结果
+- 供后续报告和汇总表使用
+
+* 5. 模块边界
+M5 只负责：
+- 规则匹配
+- 最优绕行方案判定
+- 金额影响测算
+- 汇总结果输出
+
+M5 不负责：
+- 候选路径生成
+- 路径分流点识别
+- 历史流量统计
+- 施工影响比例计算
+
+* 6. 核心处理逻辑
+
+** 6.1 读取候选路径对比结果
+从 M4 读取：
+- od_id
+- path_id
+- original_fee / candidate_fee
+- original_mileage / candidate_mileage
+- original_jk_fee / candidate_jk_fee
+- fee_diff / mileage_diff / jk_fee_diff
+
+** 6.2 读取受影响流量结果
+从 M3 读取：
+- adjusted_flow_cnt
+- impacted_flow_cnt
+- vehicle_type
+- stat_date
+- scheme_id
+
+作为待重新分配或绕行的基础流量。
+
+** 6.3 规则表匹配
+引入经验规则表：
+- 按车型
+- 按里程增幅区间
+- 按通行费增幅区间
+- 按工程或路段特征
+匹配对应绕行概率或采用比例。
+
+建议规则表示例字段：
+- rule_id
+- vehicle_type
+- mileage_increase_min
+- mileage_increase_max
+- fee_increase_min
+- fee_increase_max
+- diversion_ratio
+- valid_start_date
+- valid_end_date
+
+** 6.4 候选路径测算
+对每条候选路径测算：
+- 采用该路径的预计绕行流量
+- 对应通行费变化
+- 对应交控通行费变化
+
+当前阶段建议：
+- 以规则匹配得到 diversion_ratio
+- 将 adjusted_flow_cnt 与 diversion_ratio 相乘得到使用量
+- 再乘以费用差值得到金额影响结果
+
+** 6.5 最优绕行方案判定
+当前阶段“最优”建议采用：
+- 通行费损失最少 / 收益最优
+作为主目标
+
+可选次级目标：
+- 里程增幅较小
+- 交控通行费较优
+
+说明：
+当前阶段应先固定一套明确的排序逻辑，不做多目标权重学习。
+
+** 6.6 方案汇总
+按：
+- 方案
+- 日期
+- OD
+- 车型
+汇总结果，输出：
+- ads_toll_impact_result
+- ads_scheme_summary
+
+* 7. 当前最小输入输出定义
+
+** 输入最小集
+- dws_od_candidate_path
+- dws_impacted_od_flow_day
+- dim_toll_diversion_rule
+
+** 输出最小集
+- ads_toll_impact_result
+- ads_scheme_summary
+
+* 8. 关键表设计
+
+** dim_toll_diversion_rule
+*** 用途
+通行里程/金额增幅与绕行比例规则表，是当前阶段 M5 的核心规则来源。
+
+*** 粒度
+一条规则一行
+
+*** 当前关键字段
+- rule_id
+- vehicle_type
+- mileage_increase_min
+- mileage_increase_max
+- fee_increase_min
+- fee_increase_max
+- diversion_ratio
+- project_scope
+- valid_start_date
+- valid_end_date
+- remark
+
+** ads_toll_impact_result
+*** 用途
+存储分 OD、分车型、分日期的通行费影响结果。
+
+*** 粒度
+方案 × 日期 × OD × 车型
+
+*** 当前关键字段
+- scheme_id
+- stat_date
+- od_id
+- vehicle_type
+- original_fee_amount
+- diverted_fee_amount
+- fee_change_amount
+- impact_type
+- recommended_path_id
+- matched_rule_id
+- created_at
+- updated_at
+
+** ads_scheme_summary
+*** 用途
+存储施工方案汇总结果。
+
+*** 粒度
+方案一行
+
+*** 当前关键字段
+- scheme_id
+- impacted_section_cnt
+- impacted_od_cnt
+- total_fee_increase
+- total_fee_decrease
+- recommended_plan_cnt
+- created_at
+- updated_at
+
+* 9. 数据校验要求
+
+** 9.1 候选路径输入校验
+- dws_od_candidate_path 同一 scheme_id + od_id + path_id 不得重复
+- 费用差值字段必须与原始值一致
+- 推荐路径不得为空集
+
+** 9.2 规则表校验
+- 同一 vehicle_type + 区间规则不得重复冲突
+- diversion_ratio 必须在 [0, 1] 区间内
+- 区间上下界必须合法
+
+** 9.3 金额测算校验
+- original_fee_amount、diverted_fee_amount 不得为负
+- fee_change_amount 应与前两者差值一致
+- impact_type 与 fee_change_amount 符号一致
+
+** 9.4 汇总表校验
+- ads_scheme_summary 中的总增收/减收应可回溯到明细结果
+- 分车型合计与总量应基本一致
+- matched_rule_id 必须可追溯
+
+* 10. Python 任务建议
+建议至少拆分以下任务：
+
+- run_m5_prepare_diversion_rule
+- run_m5_match_rule_for_candidate_paths
+- run_m5_compute_toll_impact_result
+- run_m5_select_best_path
+- run_m5_build_scheme_summary
+- run_m5_check_output
+- run_m5_all
+
+* 11. SQL 清单建议
+建议至少建立以下 SQL：
+
+- sql/ddl/dim/create_dim_toll_diversion_rule.sql
+- sql/ddl/ads/create_ads_toll_impact_result.sql
+- sql/ddl/ads/create_ads_scheme_summary.sql
+
+- sql/dml/m5/build_dim_toll_diversion_rule.sql
+- sql/dml/m5/match_diversion_rule.sql
+- sql/dml/m5/build_ads_toll_impact_result.sql
+- sql/dml/m5/select_best_diversion_path.sql
+- sql/dml/m5/build_ads_scheme_summary.sql
+
+- sql/checks/m5/check_dim_toll_diversion_rule.sql
+- sql/checks/m5/check_ads_toll_impact_result.sql
+- sql/checks/m5/check_ads_scheme_summary.sql
+
+* 12. 风险点
+** 风险 1：规则表质量直接决定结果质量
+当前阶段测算高度依赖经验规则，规则不稳定会直接影响结果可信度。
+
+** 风险 2：最优方案定义若不明确，结果容易被质疑
+“最优”必须明确是以什么目标排序，否则前端难解释，管理侧也会质疑。
+
+** 风险 3：绕行比例规则泛化能力有限
+一个工程经验规则未必能稳定迁移到其他工程场景。
+
+** 风险 4：未考虑预约通行等措施
+当前结果仅代表“现阶段规则口径下”的测算结果，不代表完整政策干预结果。
+
+* 13. 当前 TODO
+- [ ] 明确 dim_toll_diversion_rule 的初版结构
+- [ ] 明确最优路径排序规则
+- [ ] 明确 fee_change_amount 的最终计算口径
+- [ ] 明确 impact_type 枚举值
+- [ ] 明确是否需要按 project_scope 细分规则
+- [ ] 明确方案汇总字段是否增加分车型统计

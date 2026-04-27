@@ -1,0 +1,149 @@
+#+TITLE: Git 协作规范
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 目标
+本文档用于统一本项目代码、SQL、文档协作方式，避免多人并行开发时出现：
+- 相互覆盖
+- 文档与代码脱节
+- 表结构和实现不一致
+- 难以追踪改动来源
+
+* 2. 分支策略
+
+** 2.1 主分支
+- main：稳定可发布分支
+- dev：日常集成开发分支
+
+** 2.2 功能分支
+每个模块或主题使用独立功能分支，例如：
+- feature/m0-data-engineering
+- feature/m1-capacity
+- feature/m2-flow-od
+- feature/m3-impact-analysis
+- feature/m4-path-optimization
+- feature/m5-toll-impact
+
+** 2.3 规范类分支
+对于规范、文档、基础设施，也可使用：
+- feature/docs-standards
+- feature/db-ddl-init
+- feature/query-api-skeleton
+
+* 3. 基本协作规则
+
+** 3.1 不直接在 main 上开发
+main 只接受经过评审和联调验证的内容。
+
+** 3.2 大改动必须走分支
+以下改动必须走独立分支：
+- 表结构变更
+- 新增模块
+- 关键 SQL 逻辑重构
+- 接口变更
+- 目录结构调整
+
+** 3.3 小改动也要可追溯
+即使是小修复，也应至少有清晰 commit 记录。
+
+* 4. Commit 规范
+
+** 4.1 提交格式建议
+建议采用：
+#+begin_example
+[模块] 动作 + 对象
+#+end_example
+
+例如：
+- [M0] add dim_section_info ddl
+- [M1] build section capacity day sql
+- [DOC] add table definition template
+- [API] add scheme summary query route
+
+** 4.2 提交要求
+一次 commit 最好聚焦一个主题，不要混杂：
+- 文档
+- SQL
+- Python
+- 接口
+- 测试
+全部揉在一起。
+
+** 4.3 不建议的提交信息
+- update
+- fix bug
+- final
+- test
+- 版本2
+
+这些都无法帮助后续追溯。
+
+* 5. Merge / Review 规则
+
+** 5.1 合并前检查项
+合并到 dev 或 main 前，至少检查：
+- 代码是否可运行
+- 文档是否同步
+- 表口径是否同步
+- SQL 是否可审查
+- 模块边界是否被破坏
+
+** 5.2 必须同步文档的场景
+以下改动必须同步文档：
+- 新增表
+- 修改字段
+- 修改主键
+- 新增接口
+- 修改模块输入输出
+- 修改业务规则
+
+** 5.3 表结构变更特别要求
+表结构变更至少应包含：
+- DDL 更新
+- 表口径总表更新
+- 字段字典更新
+- 影响说明
+
+* 6. 冲突处理原则
+当文档、SQL、Python 对同一模块描述不一致时，优先处理顺序为：
+
+1. 模块设计文档
+2. 表口径总表
+3. SQL 实现
+4. Python 编排
+5. 查询接口
+
+也就是说，先修正规范，再修正实现，不反过来。
+
+* 7. 代码评审重点
+评审时重点看：
+
+- 是否符合模块边界
+- 是否有文档支撑
+- 表粒度是否明确
+- 输入输出是否清晰
+- SQL 是否可维护
+- Python 是否只是编排而非过度承载分析逻辑
+- 是否引入了隐式依赖
+
+* 8. 禁止事项
+- 禁止直接 push main
+- 禁止先改代码后补文档且长期不补
+- 禁止未经说明修改核心表结构
+- 禁止在一个提交里混入大量无关改动
+- 禁止把 research 代码直接合入 src/ 而不清理
+- 禁止提交敏感信息（密码、token、内网地址等）
+
+* 9. 建议的协作节奏
+建议按以下节奏推进：
+1. 先建文档和口径
+2. 再建 DDL
+3. 再建 SQL 原型
+4. 再建 Python 任务
+5. 再做联调
+6. 再接查询服务
+
+* 10. 当前 TODO
+- [ ] 确定是否引入 PR 模板
+- [ ] 确定是否引入 commit lint
+- [ ] 确定是否启用 pre-commit 钩子

@@ -1,0 +1,263 @@
+#+TITLE: M4 分流路径优化模块设计
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 模块定位
+M4 负责在“受影响 OD 与迁移流量结果”基础上，生成可用的替代路径，并输出各 OD 的候选路径、分流管控单元、路径里程与费用对比结果。
+
+当前一期阶段，M4 的核心逻辑不是复杂多目标寻优，而是：
+- 获取候选路径
+- 判断哪些路径受施工影响、哪些路径可替代
+- 找出替代路径与原路径的分叉点
+- 计算原路径与替代路径的里程、通行费、交控通行费差异
+- 为 M5 提供可测算的候选路径结果
+
+* 2. 当前阶段目标
+当前阶段 M4 的目标是：
+- 对受影响 OD 获取所有可能高速路径或尽可能完整的候选路径
+- 构建原路径与替代路径集合
+- 识别分流管控单元
+- 计算路径对比参数
+- 输出候选路径结果表
+
+当前阶段不做：
+- 安全-效率-收益三维复杂优化
+- 区域路网级全局协同最优
+- 干线公路安全影响综合模型
+- 实时交通状态联动路径动态推荐
+
+* 3. 输入
+** 3.1 上游输入表
+- dws_impacted_od_flow_day
+- dwd_od_path_map
+- dim_section_info
+- dim_road_topology
+
+** 3.2 外部输入
+- 外部路径接口返回的 OD 路径结果
+- 必要时通过随机途径点方式扩展候选路径集合
+
+** 3.3 输入说明
+M4 的核心输入包括：
+- 哪些 OD 受施工影响
+- 原始路径是什么
+- 路网拓扑是什么
+- 候选替代路径有哪些
+- 收费单元与路径如何映射
+
+* 4. 输出
+** 4.1 核心输出表
+- dws_od_candidate_path
+- ads_od_diversion_plan
+
+** 4.2 可选扩展输出
+- dws_od_control_point
+- dws_od_path_fee_compare
+- dws_od_path_geometry
+
+** 4.3 输出用途
+- 供 M5 做通行费影响测算
+- 供前端展示原路径/替代路径对比
+- 供后续策略解释和报表输出
+
+* 5. 模块边界
+M4 只负责：
+- 候选路径获取
+- 路径过滤
+- 分流点识别
+- 路径费用与里程参数计算
+- 生成推荐候选结果
+
+M4 不负责：
+- 最终金额增减收汇总
+- 经验绕行比例匹配
+- 通行费损益归总
+
+* 6. 核心处理逻辑
+
+** 6.1 受影响 OD 提取
+从 M3 输出中提取：
+- 需要进行分流分析的 od_id
+- 对应 scheme_id
+- 对应 stat_date / vehicle_type / adjusted_flow_cnt
+
+** 6.2 原路径确定
+基于 dwd_od_path_map 或历史主路径规则，确定：
+- 原路径 path_id
+- 原路径收费单元序列
+- 原路径里程与费用基准
+
+当前阶段允许原路径采用：
+- 历史主路径
+- 历史 Top1 路径
+- 规则指定主路径
+
+** 6.3 候选路径获取
+从外部路径接口获取 OD 候选路径。
+
+当前阶段策略：
+- 先获取接口默认返回路径
+- 如路径不足，可通过随机途径点方式扩展
+- 对重复路径进行去重
+- 保留可映射到项目收费单元体系的路径
+
+** 6.4 路径受施工影响判断
+将候选路径与施工影响收费单元进行匹配：
+- 若路径经过受影响收费单元，则判为受影响路径
+- 若路径不经过受影响收费单元，则可作为替代路径
+
+当前阶段建议：
+- 优先按收费单元序列匹配
+- 后续可扩展为空间几何匹配
+
+** 6.5 分流管控点计算
+对原路径和替代路径进行对比，找出：
+- 第一个分叉点
+- 对应收费单元
+- 作为 control_section_id
+
+该点即分流管控单元。
+
+** 6.6 路径费用与里程计算
+对原路径与替代路径分别计算：
+- mileage
+- fee
+- jk_fee（交控通行费）
+
+并生成差值：
+- mileage_diff
+- fee_diff
+- jk_fee_diff
+
+** 6.7 候选路径筛选
+将可替代路径输出为候选路径表，为 M5 提供后续经验规则匹配与择优基础。
+
+* 7. 当前最小输入输出定义
+
+** 输入最小集
+- dws_impacted_od_flow_day
+- dwd_od_path_map
+- dim_road_topology
+- 外部路径接口结果
+
+** 输出最小集
+- dws_od_candidate_path
+- ads_od_diversion_plan
+
+* 8. 关键表设计
+
+** dws_od_candidate_path
+*** 用途
+存储某方案下某 OD 的候选替代路径及其对比参数。
+
+*** 粒度
+方案 × OD × 路径
+
+*** 当前关键字段
+- scheme_id
+- od_id
+- path_id
+- original_path_id
+- control_section_id
+- original_mileage
+- candidate_mileage
+- original_fee
+- candidate_fee
+- original_jk_fee
+- candidate_jk_fee
+- mileage_diff
+- fee_diff
+- jk_fee_diff
+- candidate_rank
+- source_flag
+- created_at
+- updated_at
+
+** ads_od_diversion_plan
+*** 用途
+存储某 OD 的推荐分流方案结果。
+
+*** 粒度
+方案 × OD × 推荐路径
+
+*** 当前关键字段
+- scheme_id
+- od_id
+- path_id
+- control_section_id
+- diversion_reason
+- recommendation_level
+- created_at
+- updated_at
+
+* 9. 数据校验要求
+
+** 9.1 原路径校验
+- 每个 od_id 必须可识别原路径
+- 原路径 path_id 不得为空
+- 原路径收费单元序列应可解析
+
+** 9.2 候选路径校验
+- path_id 不得为空
+- 候选路径需可映射到收费单元体系
+- 重复路径必须去重
+- 明显不可达路径必须剔除
+
+** 9.3 分流点校验
+- control_section_id 必须存在于 dim_section_info
+- control_section_id 应位于原路径与替代路径分叉位置
+- 同一候选路径分流点应唯一
+
+** 9.4 路径参数校验
+- mileage、fee、jk_fee 不得为负
+- 差值字段与原值、候选值应保持一致
+- 推荐路径标识逻辑必须可解释
+
+* 10. Python 任务建议
+建议至少拆分以下任务：
+
+- run_m4_extract_impacted_od
+- run_m4_fetch_candidate_paths
+- run_m4_match_paths_with_construction
+- run_m4_compute_control_section
+- run_m4_compute_path_fee_compare
+- run_m4_build_candidate_path_table
+- run_m4_build_diversion_plan
+- run_m4_check_output
+- run_m4_all
+
+* 11. SQL 清单建议
+建议至少建立以下 SQL：
+
+- sql/ddl/dws/create_dws_od_candidate_path.sql
+- sql/ddl/ads/create_ads_od_diversion_plan.sql
+
+- sql/dml/m4/build_original_path_base.sql
+- sql/dml/m4/filter_affected_candidate_paths.sql
+- sql/dml/m4/build_dws_od_candidate_path.sql
+- sql/dml/m4/build_ads_od_diversion_plan.sql
+
+- sql/checks/m4/check_candidate_path_uniqueness.sql
+- sql/checks/m4/check_control_section_validity.sql
+- sql/checks/m4/check_path_fee_compare.sql
+
+* 12. 风险点
+** 风险 1：候选路径获取不完整
+外部路径接口可能只返回最优少数路径，难以覆盖全部可行替代路径。
+
+** 风险 2：路径映射到收费单元体系困难
+路径接口多返回经纬度点串，需要稳定映射到收费单元序列。
+
+** 风险 3：分流点识别规则不稳定
+原路径与替代路径的分叉点识别若规则不统一，会影响前端解释与下游测算。
+
+** 风险 4：多断面并行施工场景复杂
+多个受影响收费单元同时存在时，路径过滤逻辑会明显复杂化。
+
+* 13. 当前 TODO
+- [ ] 明确 original_path_id 确定规则
+- [ ] 明确 path_id 去重规则
+- [ ] 明确 control_section_id 计算细则
+- [ ] 明确 mileage / fee / jk_fee 的计算来源
+- [ ] 明确多断面并行施工过滤规则
+- [ ] 明确外部路径接口结果落表结构

@@ -1,0 +1,50 @@
+# 数据库配置
+# 连接参数从环境变量加载
+
+database:
+  # PostgreSQL 连接设置
+  driver: postgresql+psycopg
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+  user: ${DB_USER}
+  password: ${DB_PASSWORD}
+  database: ${DB_NAME}
+
+  # 连接池设置
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+  pool_recycle: 3600
+
+  # Schema 设置
+  schema: public
+
+  # 查询执行设置
+  echo: false
+  echo_pool: false
+
+  # 事务设置
+  isolation_level: "READ_COMMITTED"
+
+  # 应用级设置
+  application_name: "shaanxi-resilience"
+
+# PostGIS 设置
+postgis:
+  enabled: true
+  version_check: true
+  min_version: "3.0"
+
+# 表 Schema 组织
+schema_layers:
+  ods: ods      # 原始数据层
+  dim: dim      # 维表层
+  dwd: dwd      # 明细事实层
+  dws: dws      # 汇总事实层
+  ads: ads      # 应用结果层
+  app: app      # 应用层
+
+# 默认索引设置
+indexes:
+  auto_create: true
+  unique_constraints: true

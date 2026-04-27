@@ -1,0 +1,41 @@
+# 开发环境配置
+# 继承自 base.yaml 并覆盖开发环境特定设置
+
+debug: true
+
+logging:
+  level: DEBUG
+  format: "%(asctime)s | %(name)-30s | %(levelname)-8s | %(message)s"
+  console:
+    enabled: true
+    colorize: true
+  file:
+    enabled: true
+    filename: "outputs/logs/dev_{date}.log"
+
+database:
+  driver: postgresql+psycopg
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+  user: ${DB_USER}
+  password: ${DB_PASSWORD}
+  database: ${DB_NAME}
+  schema: public
+  pool_size: 5
+  max_overflow: 10
+  echo: true  # 开发环境记录 SQL 语句
+
+query_api:
+  reload: true
+  host: "0.0.0.0"
+  port: 8010
+
+pipeline:
+  log_sql_execution: true
+  verbose: true
+
+# 开发快捷选项
+dev_shortcuts:
+  use_test_data: false
+  mock_external_api: false
+  skip_validations: false

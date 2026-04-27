@@ -1,0 +1,136 @@
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpkz_bj323\test.csv
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['a', 'b', 'c']
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpby6ucen9\test.csv
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['enid', 'exid', 'intervalgroup']
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpah0c2gqc\test.csv
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['x', 'y']
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 10 records
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmp5cgko42s\test.csv
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['a', 'b', 'c']
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 0 records
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpcp0ieqs3\test.csv
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | WARNING  | iter_csv_batches:69 | Column 'nonexistent' not found in CSV header
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | WARNING  | iter_csv_batches:72 | Missing columns: {'nonexistent'}
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (1): ['a']
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 1 records
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpjnb7kyn5\test.csv
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['enid', 'exid']
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 1 records
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpyw9mp2yo\test.csv
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (1): ['x']
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 3 records
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmp285fikax\test.csv
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['name', 'value']
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmp4w6jr7qt\count_test.csv...
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 3
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpu5g_bzvi\count_test.csv...
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 0
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpmpvrgpqo\count_test.csv...
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 1
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpa9luow60\count_test.csv...
+2026-04-27 10:11:44 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 100
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmprgu7kp_y\test.csv
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['a', 'b', 'c']
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpn332z2yh\test.csv
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['enid', 'exid', 'intervalgroup']
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmp5iyh912c\test.csv
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['x', 'y']
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 10 records
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpf13yu4nn\test.csv
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['a', 'b', 'c']
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 0 records
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpafpveswk\test.csv
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | WARNING  | iter_csv_batches:69 | Column 'nonexistent' not found in CSV header
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | WARNING  | iter_csv_batches:72 | Missing columns: {'nonexistent'}
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (1): ['a']
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 1 records
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmp47kf56o2\test.csv
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['enid', 'exid']
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 1 records
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpqocabckr\test.csv
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (1): ['x']
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 3 records
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpwhbts9zh\test.csv
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['name', 'value']
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmp71mlz0hd\count_test.csv...
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 3
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpxxcgywzf\count_test.csv...
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 0
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmp2hq78ryd\count_test.csv...
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 1
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpw2s6nn9i\count_test.csv...
+2026-04-27 10:16:18 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 100
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmp5cfi3wga\test.csv
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['a', 'b', 'c']
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpdy__mw44\test.csv
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['enid', 'exid', 'intervalgroup']
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpq2vskz04\test.csv
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['x', 'y']
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 10 records
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpo0wq7sze\test.csv
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['a', 'b', 'c']
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 0 records
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpeqoqnxpt\test.csv
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | WARNING  | iter_csv_batches:69 | Column 'nonexistent' not found in CSV header
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | WARNING  | iter_csv_batches:72 | Missing columns: {'nonexistent'}
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (1): ['a']
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 1 records
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpnncmka8u\test.csv
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['enid', 'exid']
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 1 records
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpsurbo3t4\test.csv
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (1): ['x']
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 3 records
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpf2nf6_la\test.csv
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['name', 'value']
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmplwotapzq\count_test.csv...
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 3
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpkhzdy4ns\count_test.csv...
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 0
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpk1gjb5g5\count_test.csv...
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 1
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmp9b6r23r5\count_test.csv...
+2026-04-27 10:31:35 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 100
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpnpu4ptel\test.csv
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['a', 'b', 'c']
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpyc1nztdd\test.csv
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['enid', 'exid', 'intervalgroup']
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmp1wxqsxp7\test.csv
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['x', 'y']
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 10 records
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmp130eusv8\test.csv
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['a', 'b', 'c']
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 0 records
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmph35npvvj\test.csv
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | WARNING  | iter_csv_batches:69 | Column 'nonexistent' not found in CSV header
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | WARNING  | iter_csv_batches:72 | Missing columns: {'nonexistent'}
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (1): ['a']
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 1 records
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmp_ckpl0x7\test.csv
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['enid', 'exid']
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 1 records
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpz4th2qc8\test.csv
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (1): ['x']
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 3 records
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmppdqq2rtj\test.csv
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['name', 'value']
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmp4h7sv0pn\count_test.csv...
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 3
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmphtkjb_if\count_test.csv...
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 0
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpk3vezzzd\count_test.csv...
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 1
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpwr98dah0\count_test.csv...
+2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 100

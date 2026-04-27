@@ -1,0 +1,234 @@
+#+TITLE: M3 交通影响分析模块设计
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 模块定位
+M3 负责将“历史流量基准”与“施工期间可通行能力”结合起来，计算施工影响下的受影响流量、受影响 OD 和迁移流量结果。
+
+在当前一期阶段，M3 的定位不是做复杂交通流机理仿真，而是基于：
+- 历史流量统计结果
+- 收费单元可通行当量
+- 经验规则与比例修正
+
+输出一个可供后续分流路径优化使用的“施工影响结果层”。
+
+* 2. 当前阶段目标
+当前阶段 M3 的目标是：
+- 构建“历史流量 vs 施工能力”对比关系
+- 输出施工影响比例
+- 生成受影响 OD 与迁移流量结果
+- 将影响结果按车型折算回自然量
+- 为 M4 分流路径优化提供输入
+
+当前阶段不做：
+- 动态交通流仿真
+- 拥堵传播精细时空建模
+- 队列演化模型
+- 实时交通状态反馈闭环
+
+* 3. 输入
+** 3.1 上游输入表
+- dws_section_capacity_day
+- dws_section_od_flow_day
+- dws_section_flow_day
+- dim_section_info
+- dwd_scheme_section_map
+
+** 3.2 输入说明
+M3 需要两个核心输入来源：
+
+一类是“供给侧”：
+- 施工期间收费单元可通行当量（来自 M1）
+
+一类是“需求侧”：
+- 历史收费单元流量
+- 历史收费单元-OD 流量
+- 历史车型分布与当量折算结果（来自 M2）
+
+* 4. 输出
+** 4.1 核心输出表
+- dws_impacted_od_flow_day
+
+** 4.2 可选扩展输出
+- dws_section_impact_ratio_day
+- dws_section_affected_flow_day
+- dws_od_migration_summary_day
+
+** 4.3 输出用途
+- 向 M4 提供受影响 OD 及迁移流量结果
+- 为方案层结果解释提供施工影响中间结果
+- 为后续效果评估预留基础数据
+
+* 5. 模块边界
+M3 只负责：
+- 判断施工能力变化对历史流量的影响
+- 输出受影响 OD 与迁移流量结果
+- 折算自然量结果
+
+M3 不负责：
+- 候选路径生成
+- 分流点确定
+- 替代路径择优
+- 通行费影响测算
+
+* 6. 核心处理逻辑
+
+** 6.1 基准流量获取
+从 M2 输出中读取：
+- 收费单元日流量
+- 收费单元-OD 日流量
+- 车型分布
+- 当量折算结果
+
+用于构建施工前基准需求。
+
+** 6.2 施工能力获取
+从 M1 输出中读取：
+- 施工期间收费单元日可通行当量
+
+用于构建施工期间供给能力。
+
+** 6.3 供需对比
+在收费单元 × 日期 × 车型 或收费单元 × 日期粒度上，计算：
+- demand_pcu
+- capacity_pcu
+- impact_ratio
+
+当前阶段建议采用保守规则：
+- 若 capacity_pcu >= demand_pcu，则 impact_ratio = 0
+- 若 capacity_pcu < demand_pcu，则按差值比例计算影响程度
+
+** 6.4 受影响流量计算
+将供需差异映射为：
+- 受影响流量
+- 可能迁移流量
+
+当前阶段以经验比例修正为主，不做精细排队传播。
+
+** 6.5 OD 级影响分配
+将收费单元级影响分配到 OD 级，形成：
+- od_id
+- stat_date
+- vehicle_type
+- impacted_flow_cnt
+- impacted_flow_pcu
+- adjusted_flow_cnt
+
+分配原则：
+- 依据收费单元-OD 历史流量结构占比
+- 按车型比例进行折算
+- 必要时叠加经验修正系数
+
+** 6.6 自然量回算
+将 PCU 影响量按车型折算回自然量，得到后续 M4 可直接使用的受影响 OD 与迁移流量结果。
+
+* 7. 当前最小输入输出定义
+
+** 输入最小集
+- dws_section_capacity_day
+- dws_section_od_flow_day
+- dws_section_flow_day
+
+** 输出最小集
+- dws_impacted_od_flow_day
+
+* 8. 关键表设计
+
+** dws_impacted_od_flow_day
+*** 用途
+记录施工影响下受影响 OD 及迁移流量结果，是 M3 的核心输出。
+
+*** 粒度
+方案 × 日期 × OD × 车型
+
+*** 当前关键字段
+- scheme_id
+- stat_date
+- od_id
+- vehicle_type
+- impacted_flow_cnt
+- impacted_flow_pcu
+- impact_ratio
+- adjusted_flow_cnt
+- source_flag
+- created_at
+- updated_at
+
+*** 字段说明建议
+- impacted_flow_cnt：受影响自然量
+- impacted_flow_pcu：受影响当量
+- impact_ratio：影响比例
+- adjusted_flow_cnt：修正后需进入后续路径分配的流量
+
+** dws_section_impact_ratio_day（可选）
+*** 用途
+记录收费单元级施工影响比例结果，供分析与校验。
+
+*** 粒度
+方案 × 日期 × 收费单元 × 车型
+
+* 9. 数据校验要求
+
+** 9.1 供需输入校验
+- dws_section_capacity_day 与 dws_section_flow_day 必须粒度可关联
+- section_id、stat_date、vehicle_type 口径必须一致
+- capacity_pcu、flow_pcu 不得为负
+
+** 9.2 影响比例校验
+- impact_ratio 取值区间建议限制在 [0, 1]
+- 当 capacity_pcu >= demand_pcu 时，impact_ratio 应接近 0
+- 当 capacity_pcu 明显低于 demand_pcu 时，impact_ratio 应显著上升
+
+** 9.3 OD 分配校验
+- 同一收费单元的 OD 分配结果合计应与收费单元级影响结果基本一致
+- 分配过程中不得出现负流量
+- 分车型总和应与总量逻辑一致
+
+** 9.4 输出表校验
+- dws_impacted_od_flow_day 同一主键不得重复
+- impacted_flow_cnt / adjusted_flow_cnt 不得为负
+- source_flag 必须标记规则来源
+
+* 10. Python 任务建议
+建议至少拆分以下任务：
+
+- run_m3_prepare_supply_demand_base
+- run_m3_build_section_impact_ratio
+- run_m3_build_impacted_od_flow_day
+- run_m3_adjust_natural_flow
+- run_m3_check_output
+- run_m3_all
+
+* 11. SQL 清单建议
+建议至少建立以下 SQL：
+
+- sql/ddl/dws/create_dws_impacted_od_flow_day.sql
+- sql/ddl/dws/create_dws_section_impact_ratio_day.sql
+
+- sql/dml/m3/build_section_supply_demand_compare.sql
+- sql/dml/m3/build_dws_section_impact_ratio_day.sql
+- sql/dml/m3/build_dws_impacted_od_flow_day.sql
+- sql/dml/m3/adjust_impacted_flow_to_natural_cnt.sql
+
+- sql/checks/m3/check_supply_demand_consistency.sql
+- sql/checks/m3/check_dws_impacted_od_flow_day.sql
+
+* 12. 风险点
+** 风险 1：收费单元影响向 OD 分配的偏差
+收费单元级影响并不天然等于 OD 级影响，需要依赖历史结构分配，存在偏差。
+
+** 风险 2：车型折算规则敏感
+PCU 向自然量回算时，车型比例口径会显著影响结果。
+
+** 风险 3：供需差异规则过于简化
+当前阶段规则可支撑 MVP，但不足以表达复杂时段性拥堵现象。
+
+** 风险 4：节假日和特殊日期影响
+历史流量基准若不区分节假日、特殊高峰，可能导致施工影响高估或低估。
+
+* 13. 当前 TODO
+- [ ] 明确 demand_pcu 的最终计算方式
+- [ ] 明确 impact_ratio 具体公式或规则表
+- [ ] 明确 OD 分配优先规则
+- [ ] 明确自然量回算规则
+- [ ] 明确节假日口径是否单独建模

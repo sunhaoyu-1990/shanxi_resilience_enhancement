@@ -1,0 +1,315 @@
+#+TITLE: 命名规范
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 目标
+本文档用于统一本项目中的：
+- 表命名
+- 字段命名
+- 主键命名
+- SQL 文件命名
+- Python 文件命名
+- 接口命名
+- 配置项命名
+
+确保多人协作和 Claude 生成内容时命名一致、可读、可追溯。
+
+* 2. 总体原则
+
+** 2.1 全局统一使用英文小写下划线
+适用于：
+- 表名
+- 字段名
+- SQL 文件名
+- Python 文件名
+- 配置项键名（建议）
+
+示例：
+- good: dim_section_info
+- good: dws_section_od_flow_day
+- bad: DimSectionInfo
+- bad: DWSSectionODFlowDay
+- bad: sectionInfo
+
+** 2.2 名称应表达业务含义
+命名必须能让人看懂“这是什么”。
+禁止使用无意义缩写或仅开发者自己能懂的代号。
+
+** 2.3 粒度要体现在名称中
+尤其是结果表，名称中应尽量体现：
+- 粒度对象
+- 统计主题
+- 时间粒度
+
+例如：
+- dws_section_flow_day
+- dws_section_od_flow_day
+- ads_scheme_summary
+
+* 3. 表命名规范
+
+** 3.1 基本格式
+#+begin_example
+<layer>_<subject>_<theme>_<grain>
+#+end_example
+
+例如：
+- dim_section_info
+- dwd_scheme_section_map
+- dws_section_capacity_day
+- ads_toll_impact_result
+
+** 3.2 分层前缀
+- ods_
+- dim_
+- dwd_
+- dws_
+- ads_
+- app_
+
+** 3.3 subject 建议
+常见主体建议：
+- section
+- station
+- road
+- topology
+- scheme
+- od
+- path
+- vehicle
+- toll
+- calendar
+
+** 3.4 theme 建议
+常见主题建议：
+- info
+- map
+- flow
+- capacity
+- impact
+- candidate
+- summary
+- result
+- compare
+- rule
+
+** 3.5 grain 建议
+常见粒度后缀建议：
+- day
+- hour
+- detail
+- summary
+- raw
+- seq
+
+* 4. 字段命名规范
+
+** 4.1 基本要求
+- 英文小写下划线
+- 名称完整
+- 业务含义明确
+- 避免多义词
+
+** 4.2 ID 字段命名
+统一使用：
+- scheme_id
+- section_id
+- station_id
+- road_id
+- od_id
+- path_id
+- rule_id
+- task_id
+- batch_no
+- request_id
+
+禁止混用：
+- id_section
+- sid
+- sch_id
+- pathid
+
+** 4.3 名称字段命名
+统一使用：
+- section_name
+- station_name
+- road_name
+- scheme_name
+
+** 4.4 时间字段命名
+统一建议：
+- stat_date      统计日期（日）
+- stat_hour      统计小时
+- start_date     开始日期
+- end_date       结束日期
+- entry_time     进入时间
+- exit_time      离开时间
+- created_at     创建时间
+- updated_at     更新时间
+- valid_start_date
+- valid_end_date
+
+** 4.5 数值字段命名
+统一建议：
+- *_cnt           计数/数量
+- *_amount        金额
+- *_mileage       里程
+- *_ratio         比例
+- *_pcu           当量
+- *_diff          差值
+- *_rank          排序
+- *_flag          标识
+
+示例：
+- flow_cnt
+- fee_amount
+- mileage_diff
+- impact_ratio
+- capacity_pcu
+
+* 5. 特殊关键字段命名
+
+** 5.1 section_number
+字段名固定为：
+- section_number
+
+含义：
+- 同一条单一路径上的收费单元归属同一个编号
+
+不得替换为：
+- section_no
+- route_section_no
+- single_path_no
+
+** 5.2 source_flag
+用于标识结果来源，建议取值包括：
+- actual
+- filled
+- rule
+- api
+
+** 5.3 impact_type
+用于标识影响结果类型，后续可统一枚举，例如：
+- increase
+- decrease
+- no_change
+
+* 6. SQL 文件命名规范
+
+** 6.1 DDL 文件
+基本格式：
+#+begin_example
+create_<table_name>.sql
+#+end_example
+
+例如：
+- create_dim_section_info.sql
+- create_dws_section_capacity_day.sql
+
+** 6.2 DML 文件
+基本格式：
+#+begin_example
+<action>_<object>.sql
+#+end_example
+
+常见 action：
+- build
+- load
+- fill
+- match
+- adjust
+- select
+- filter
+- compute
+
+例如：
+- build_dim_section_info.sql
+- build_dws_section_od_flow_day.sql
+- fill_missing_section_od_flow.sql
+- match_diversion_rule.sql
+
+** 6.3 校验 SQL 文件
+基本格式：
+#+begin_example
+check_<object>.sql
+#+end_example
+
+例如：
+- check_dim_section_info.sql
+- check_dws_impacted_od_flow_day.sql
+
+* 7. Python 文件命名规范
+
+** 7.1 正式代码文件
+使用英文小写下划线。
+
+例如：
+- settings.py
+- db.py
+- sql_runner.py
+- run_m0.py
+- run_pipeline.py
+
+** 7.2 禁止命名
+- final.py
+- test_new2.py
+- tmp_fix.py
+- all_in_one.py
+
+* 8. 接口命名规范
+
+** 8.1 路径命名
+- 使用复数名词表示资源集合
+- 使用层次结构表达资源关系
+- 使用短横线或小写英文单词
+
+例如：
+- /api/v1/tasks/scheme-run
+- /api/v1/tasks/module-run
+- /api/v1/results/schemes/{scheme_id}/summary
+
+** 8.2 字段命名
+接口 JSON 字段与数据库/后端模型命名尽量保持一致，避免一套接口字段、一套数据库字段。
+
+* 9. 配置项命名规范
+YAML 键名建议：
+- 小写英文
+- 层级清晰
+- 不用拼音
+- 不用模糊缩写
+
+示例：
+#+begin_src yaml
+database:
+  host: localhost
+  port: 5432
+task:
+  default_run_mode: full
+logging:
+  level: INFO
+#+end_src
+
+* 10. 禁止事项
+- 禁止中英混杂命名
+- 禁止大小写风格混乱
+- 禁止无意义缩写
+- 禁止同一概念多种命名并存
+- 禁止 section_id / toll_section_id / section_code 不加说明混用
+
+* 11. 当前建议统一术语
+- 收费单元：section
+- 收费站：station
+- 施工方案：scheme
+- 路径：path
+- 起终点对：od
+- 通行能力：capacity
+- 流量：flow
+- 影响：impact
+- 分流：diversion
+- 通行费：toll
+
+* 12. 当前 TODO
+- [ ] 明确 road_id 与 road_code 是否区分
+- [ ] 明确 scheme_id 的编码格式
+- [ ] 明确 path_id 是外部接口值还是内部生成值
+- [ ] 明确 vehicle_type 枚举命名

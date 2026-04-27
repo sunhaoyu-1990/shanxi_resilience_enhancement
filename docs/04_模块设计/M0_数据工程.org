@@ -1,0 +1,267 @@
+#+TITLE: M0 数据工程模块设计
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 模块定位
+M0 是一期后端算法工程的底座模块。
+
+本模块负责：
+- 原始数据接入
+- 数据核实与标准化
+- 施工方案入库
+- 收费单元与施工方案映射
+- OD-Path 映射底座建设
+- 为后续模块提供统一维表、标准表和映射表
+
+M0 的输出不是最终业务结果，而是后续 M1 ~ M5 的基础输入。
+
+* 2. 当前阶段目标
+当前一期阶段，M0 的目标是先完成最小可用版本所需数据底座，不追求所有数据问题一次性解决。
+
+当前必须保证：
+- 收费单元基础信息统一
+- section_number 正确纳入
+- 施工方案可稳定落表
+- 收费单元-施工映射可供 M1 直接使用
+- OD-Path 映射可供 M2/M4 使用
+- 路网拓扑可供路径与关联分析使用
+
+* 3. 输入
+** 3.1 原始输入数据
+来源于运维或外部系统，当前已知包括：
+- 单次通行信息表（近五年）
+- 收费单元信息表（近五年各变换版本）
+- 收费站信息表（近五年各变换版本）
+- 高速路网拓扑关系信息（近五年各变换版本）
+- 四个工程施工方案数据
+- 历史施工方案数据（近五年）
+
+** 3.2 特别输入要求
+收费单元信息表必须包含或补充：
+- section_number
+
+其定义为：
+同一条单一路径上的所有收费单元赋同一个编号。
+该字段是路径归并和收费单元路径映射的重要基础。
+
+* 4. 输出
+** 4.1 维表层
+- dim_section_info
+- dim_station_info
+- dim_road_topology
+- dim_scheme_info
+
+** 4.2 明细/标准层
+- dwd_single_trip_info
+- dwd_scheme_section_map
+- dwd_od_path_map
+
+** 4.3 结果用途
+- 向 M1 提供收费单元施工映射结果
+- 向 M2 提供收费单元维表、拓扑表、OD-Path 映射
+- 向 M4 提供路径匹配底座数据
+
+* 5. 模块边界
+M0 只负责“数据准备与映射底座”，不负责：
+- 通行能力计算
+- 交通影响修正
+- 分流路径择优
+- 通行费影响测算
+
+M0 的职责到“表准备好、映射准备好、可供下游消费”为止。
+
+* 6. 核心处理流程
+** 6.1 原始表接入
+将外部原始表接入 ODS 层，保持尽量少加工。
+
+建议：
+- 保留原始字段
+- 保留原始版本信息
+- 保留原始时间范围
+- 不在 ODS 层做复杂业务逻辑
+
+** 6.2 标准维表构建
+将收费单元、收费站、拓扑等基础信息标准化为 DIM 层维表。
+
+关键工作：
+- 主字段统一命名
+- 历史版本信息保留
+- 有效时间范围明确
+- 去重与主键校验
+
+** 6.3 section_number 处理
+将收费单元单一路径标号纳入 dim_section_info。
+
+当前要求：
+- 同一单一路径上的收费单元赋同一 section_number
+- 该字段后续用于路径归并与收费单元归并
+- 必须进行唯一性和连续性校验
+
+** 6.4 施工方案入库
+将施工方案转为标准施工方案主表：
+- dim_scheme_info
+
+并构建施工方案与收费单元关系表：
+- dwd_scheme_section_map
+
+** 6.5 OD-Path 映射构建
+根据单次通行数据、路径识别结果或已有外部映射，生成：
+- dwd_od_path_map
+
+说明：
+当前阶段允许该表先为“可迭代版本”，后续随路径识别精度逐步增强。
+
+* 7. 关键表设计
+
+** dim_section_info
+*** 用途
+收费单元标准维表，是整个项目的收费单元统一主数据源。
+
+*** 当前关键字段
+- section_id
+- section_name
+- road_id
+- road_name
+- direction
+- lane_cnt
+- section_number
+- valid_start_date
+- valid_end_date
+
+** dim_road_topology
+*** 用途
+收费单元拓扑关系维表。
+
+*** 当前关键字段
+- from_section_id
+- to_section_id
+- relation_type
+- valid_start_date
+- valid_end_date
+
+*** 当前已知结构
+当前路网拓扑基础结构为：
+- 本收费单元ID
+- 下一个收费单元ID
+- 一对多关系
+
+** dwd_scheme_section_map
+*** 用途
+记录施工方案影响到哪些收费单元，以及该收费单元对应的施工约束信息。
+
+*** 当前关键字段
+- scheme_id
+- section_id
+- lane_occupied_cnt
+- construction_mode
+- speed_limit
+- distance_limit
+- valid_start_date
+- valid_end_date
+
+** dwd_od_path_map
+*** 用途
+构建 OD 与路径的统一映射关系，为后续 OD 流量统计、路径匹配和分流优化提供基础。
+
+*** 当前关键字段
+- od_id
+- path_id
+- entry_station_id
+- exit_station_id
+- path_sections
+- source_flag
+
+* 8. 当前最小输入输出定义
+
+** 输入最小集
+- 收费单元原始表
+- 收费站原始表
+- 路网拓扑原始表
+- 施工方案原始表
+- 单次通行原始表
+
+** 输出最小集
+- dim_section_info
+- dim_road_topology
+- dwd_scheme_section_map
+- dwd_od_path_map
+
+* 9. 数据校验要求
+
+** 9.1 收费单元校验
+- section_id 不为空
+- 同一有效期内 section_id 不重复
+- section_number 不为空
+- 同一 section_id 在同一时间范围内仅对应一个有效 section_number
+
+** 9.2 拓扑校验
+- from_section_id / to_section_id 不为空
+- 关联收费单元必须存在于 dim_section_info
+- 禁止明显自环（除非业务明确允许）
+- 一对多关系必须可解释
+
+** 9.3 施工方案映射校验
+- scheme_id 必须存在
+- 映射到的 section_id 必须存在
+- 有效期不得为空
+- lane_occupied_cnt 取值必须合法
+
+** 9.4 OD-Path 映射校验
+- od_id 不为空
+- path_id 不为空
+- path_sections 不为空
+- entry_station_id 和 exit_station_id 必须存在于收费站维表
+
+* 10. Python 任务建议
+建议至少拆分以下任务：
+
+- run_m0_ods_load
+- run_m0_dim_build
+- run_m0_section_number_check
+- run_m0_scheme_mapping
+- run_m0_od_path_mapping
+- run_m0_all
+
+* 11. SQL 清单建议
+建议至少建立以下 SQL：
+
+- sql/ddl/dim/create_dim_section_info.sql
+- sql/ddl/dim/create_dim_station_info.sql
+- sql/ddl/dim/create_dim_road_topology.sql
+- sql/ddl/dim/create_dim_scheme_info.sql
+- sql/ddl/dwd/create_dwd_scheme_section_map.sql
+- sql/ddl/dwd/create_dwd_od_path_map.sql
+
+- sql/dml/m0/load_ods_single_trip_info.sql
+- sql/dml/m0/build_dim_section_info.sql
+- sql/dml/m0/build_dim_station_info.sql
+- sql/dml/m0/build_dim_road_topology.sql
+- sql/dml/m0/build_dim_scheme_info.sql
+- sql/dml/m0/build_dwd_scheme_section_map.sql
+- sql/dml/m0/build_dwd_od_path_map.sql
+
+- sql/checks/m0/check_dim_section_info.sql
+- sql/checks/m0/check_dim_road_topology.sql
+- sql/checks/m0/check_dwd_scheme_section_map.sql
+- sql/checks/m0/check_dwd_od_path_map.sql
+
+* 12. 风险点
+** 风险 1：收费单元历史版本不一致
+不同年份收费单元版本可能存在字段差异、粒度变化、名称变化。
+
+** 风险 2：section_number 标注质量
+如果 section_number 标注不稳定，会影响后续路径归并和断面映射。
+
+** 风险 3：OD-Path 映射完整性不足
+当前阶段 OD-Path 映射可能并非完美，需要允许迭代修正。
+
+** 风险 4：施工方案映射颗粒度不统一
+施工方案可能以路段描述，而非天然收费单元粒度，需要额外转换。
+
+* 13. 当前 TODO
+- [ ] 明确收费单元原始表字段全集
+- [ ] 明确收费站原始表字段全集
+- [ ] 明确拓扑表原始字段全集
+- [ ] 明确施工方案原始字段全集
+- [ ] 明确 OD-Path path_id 生成规则
+- [ ] 明确 section_number 校验规则细节

@@ -1,0 +1,742 @@
+你现在要为一个真实项目创建“可直接开始开发的一期工程骨架”，项目名称：
+
+陕交控多路段改扩建韧性提升项目（一期）
+
+你的目标不是写完整业务算法，而是先把整个项目的**工程底座、目录、配置、代码骨架、SQL 骨架、文档骨架、任务骨架、查询服务骨架**搭起来，让后续可以在这个基础上继续开发。
+
+====================
+一、项目背景与当前范围
+====================
+
+当前一期项目的主链路固定为：
+
+- M0 数据工程
+- M1 通行能力评估
+- M2 流量与OD迁移统计补全
+- M3 交通影响分析
+- M4 分流路径优化
+- M5 通行费影响测算
+
+当前阶段强调：
+- 先做最小可用版本（MVP）
+- 先搭工程骨架，不追求复杂业务逻辑终版
+- 以统计、经验规则、工程化实现为主
+- 不擅自扩展到高阶研究闭环
+- 不擅自改变模块编号和边界
+
+当前已明确的重要约束：
+- 技术栈：Python + SQL 为主
+- 数据库：PostgreSQL + PostGIS
+- 模式：离线批处理为主，查询服务为辅
+- 配置：YAML + .env
+- 文档：Org
+- 核心风格：SQL 承担核心统计与分析逻辑，Python 负责编排、配置、日志、校验、服务封装
+- 收费单元维表必须纳入字段：section_number
+- 当前路网拓扑基础结构为：本收费单元ID -> 下一个收费单元ID（一对多）
+
+注意：
+当前阶段不要臆造未确认的业务规则。
+未确认项允许使用 TODO 标记，但工程结构必须完整。
+
+====================
+二、你必须完成的任务
+====================
+
+请直接在当前工作目录下创建完整工程骨架，要求包含：
+
+1. 完整目录结构
+2. 完整配置文件骨架
+3. Python 项目安装配置
+4. src/app 基础组件
+5. src/common 公共组件
+6. M0~M5 模块统一骨架
+7. jobs 任务入口
+8. FastAPI 查询服务骨架
+9. sql/ddl、sql/dml、sql/checks 骨架文件
+10. docs 文档骨架文件
+11. README.org
+12. CLAUDE.md
+13. .env.example
+14. 基础脚本 scripts/
+
+要求最终达到：
+- 可以 `pip install -e .`
+- 可以运行 pipeline 骨架
+- 可以启动 query API 骨架
+- 目录清晰、代码统一、文件齐全
+- 后续可直接在此基础上继续补业务逻辑
+
+====================
+三、目标目录结构
+====================
+
+请严格创建如下目录和文件：
+
+shaanxi-resilience/
+├─ README.org
+├─ CLAUDE.md
+├─ pyproject.toml
+├─ .gitignore
+├─ .env.example
+├─ configs/
+│  ├─ base.yaml
+│  ├─ dev.yaml
+│  ├─ prod.yaml
+│  ├─ db.yaml
+│  ├─ task.yaml
+│  └─ logging.yaml
+├─ docs/
+│  ├─ 00_项目总览/
+│  │  ├─ 项目总体说明.org
+│  │  ├─ 模块边界与主链路说明.org
+│  │  └─ 数据流图说明.org
+│  ├─ 01_开发规范/
+│  │  ├─ Claude开发规范.org
+│  │  ├─ Python编码规范.org
+│  │  ├─ SQL编写规范.org
+│  │  ├─ Git协作规范.org
+│  │  └─ 日志与错误处理规范.org
+│  ├─ 02_数据设计/
+│  │  ├─ 数据分层规范.org
+│  │  ├─ 命名规范.org
+│  │  ├─ 主键与编码规范.org
+│  │  ├─ 表口径总表.org
+│  │  └─ 字段字典.org
+│  ├─ 03_接口文档/
+│  │  └─ 接口总览.org
+│  ├─ 04_模块设计/
+│  │  ├─ M0_数据工程.org
+│  │  ├─ M1_通行能力评估.org
+│  │  ├─ M2_流量与OD迁移统计补全.org
+│  │  ├─ M3_交通影响分析.org
+│  │  ├─ M4_分流路径优化.org
+│  │  └─ M5_通行费影响测算.org
+│  └─ 05_运行维护/
+│     ├─ 环境部署说明.org
+│     ├─ 任务调度说明.org
+│     ├─ 数据初始化说明.org
+│     └─ 常见问题.org
+├─ sql/
+│  ├─ ddl/
+│  │  ├─ ods/
+│  │  ├─ dim/
+│  │  ├─ dwd/
+│  │  ├─ dws/
+│  │  ├─ ads/
+│  │  └─ app/
+│  ├─ dml/
+│  │  ├─ m0/
+│  │  ├─ m1/
+│  │  ├─ m2/
+│  │  ├─ m3/
+│  │  ├─ m4/
+│  │  └─ m5/
+│  ├─ checks/
+│  │  ├─ m0/
+│  │  ├─ m1/
+│  │  ├─ m2/
+│  │  ├─ m3/
+│  │  ├─ m4/
+│  │  └─ m5/
+│  └─ views/
+├─ src/
+│  ├─ app/
+│  │  ├─ __init__.py
+│  │  ├─ settings.py
+│  │  ├─ db.py
+│  │  ├─ logger.py
+│  │  ├─ exceptions.py
+│  │  └─ enums.py
+│  ├─ common/
+│  │  ├─ __init__.py
+│  │  ├─ sql_runner.py
+│  │  ├─ validators.py
+│  │  ├─ time_utils.py
+│  │  ├─ file_loader.py
+│  │  └─ postgis_utils.py
+│  ├─ modules/
+│  │  ├─ m0_data_engineering/
+│  │  │  ├─ __init__.py
+│  │  │  ├─ task.py
+│  │  │  ├─ service.py
+│  │  │  ├─ repository.py
+│  │  │  ├─ schema.py
+│  │  │  └─ checks.py
+│  │  ├─ m1_capacity/
+│  │  │  ├─ __init__.py
+│  │  │  ├─ task.py
+│  │  │  ├─ service.py
+│  │  │  ├─ repository.py
+│  │  │  ├─ schema.py
+│  │  │  └─ checks.py
+│  │  ├─ m2_flow_od_completion/
+│  │  │  ├─ __init__.py
+│  │  │  ├─ task.py
+│  │  │  ├─ service.py
+│  │  │  ├─ repository.py
+│  │  │  ├─ schema.py
+│  │  │  └─ checks.py
+│  │  ├─ m3_impact_analysis/
+│  │  │  ├─ __init__.py
+│  │  │  ├─ task.py
+│  │  │  ├─ service.py
+│  │  │  ├─ repository.py
+│  │  │  ├─ schema.py
+│  │  │  └─ checks.py
+│  │  ├─ m4_path_optimization/
+│  │  │  ├─ __init__.py
+│  │  │  ├─ task.py
+│  │  │  ├─ service.py
+│  │  │  ├─ repository.py
+│  │  │  ├─ schema.py
+│  │  │  └─ checks.py
+│  │  └─ m5_toll_impact/
+│  │     ├─ __init__.py
+│  │     ├─ task.py
+│  │     ├─ service.py
+│  │     ├─ repository.py
+│  │     ├─ schema.py
+│  │     └─ checks.py
+│  ├─ jobs/
+│  │  ├─ __init__.py
+│  │  ├─ run_m0.py
+│  │  ├─ run_m1.py
+│  │  ├─ run_m2.py
+│  │  ├─ run_m3.py
+│  │  ├─ run_m4.py
+│  │  ├─ run_m5.py
+│  │  └─ run_pipeline.py
+│  ├─ services/
+│  │  └─ query_api/
+│  │     ├─ __init__.py
+│  │     ├─ main.py
+│  │     ├─ deps.py
+│  │     ├─ schemas.py
+│  │     └─ routes/
+│  │        ├─ __init__.py
+│  │        ├─ tasks.py
+│  │        └─ results.py
+│  └─ tests/
+│     ├─ __init__.py
+│     ├─ unit/
+│     └─ integration/
+├─ scripts/
+│  ├─ init_db.sh
+│  ├─ run_dev.sh
+│  └─ cron/
+├─ research/
+│  ├─ m0/
+│  ├─ m1/
+│  ├─ m2/
+│  ├─ m3/
+│  ├─ m4/
+│  └─ m5/
+└─ outputs/
+   ├─ logs/
+   ├─ exports/
+   ├─ reports/
+   └─ temp/
+
+====================
+四、实现边界
+====================
+
+你需要做的是“工程骨架搭建”，不是完整业务开发。
+
+必须做到：
+- 项目结构完整
+- 代码和文件可运行
+- 模块骨架统一
+- 配置真实可用
+- SQL 执行器真实可用
+- 文档骨架不是空文件
+- jobs 可执行
+- query API 可启动
+
+暂不要求：
+- 完整真实业务 SQL
+- 最终全部字段
+- 真实路径接口接入
+- 复杂 GIS 逻辑
+- 完整单元测试体系
+- 真实业务结果正确性
+
+未确认项请：
+- 使用 TODO 明确标记
+- 不要擅自虚构规则
+- 不要偷懒省略文件
+
+====================
+五、Python 项目要求
+====================
+
+请创建一个可安装的 Python 项目，建议：
+- Python >=3.11,<3.13
+- 使用 setuptools 或 hatchling，保持稳定简单
+
+依赖至少包括：
+- sqlalchemy
+- psycopg[binary]
+- pydantic
+- pydantic-settings
+- pyyaml
+- jinja2
+- fastapi
+- uvicorn
+- python-dotenv
+- pytest
+
+请在 pyproject.toml 中配置 console scripts，至少包括：
+- run-m0
+- run-m1
+- run-m2
+- run-m3
+- run-m4
+- run-m5
+- run-pipeline
+- run-query-api
+
+====================
+六、配置文件要求
+====================
+
+请实现这些配置文件，并写入可用骨架内容：
+
+1. configs/base.yaml
+至少包含：
+- project
+- paths
+- pipeline
+- query_api
+
+2. configs/dev.yaml
+至少包含：
+- debug
+- logging level
+- 开发环境覆盖项
+
+3. configs/prod.yaml
+至少包含：
+- debug false
+- 生产环境覆盖项
+
+4. configs/db.yaml
+至少包含：
+
+database:
+  driver: postgresql+psycopg
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+  user: ${DB_USER}
+  password: ${DB_PASSWORD}
+  database: ${DB_NAME}
+  schema: public
+  pool_size: 10
+  max_overflow: 20
+  echo: false
+
+5. configs/task.yaml
+至少包含：
+- 默认 run mode
+- overwrite 开关
+- 默认模块配置占位
+
+6. configs/logging.yaml
+至少包含：
+- level
+- format
+- log dir
+- console/file 开关
+
+7. .env.example
+至少包含：
+APP_ENV=dev
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=shaanxi_resilience
+
+====================
+七、src/app 要求
+====================
+
+1. settings.py
+必须：
+- 使用 pydantic-settings
+- 支持加载 .env
+- 支持读取 yaml
+- 提供统一 get_settings()
+- 合并 base + env + db + task + logging 配置
+
+2. db.py
+必须：
+- 提供 SQLAlchemy engine
+- 提供 session factory
+- 提供测试连接函数
+- 提供 PostGIS 检查函数占位
+
+3. logger.py
+必须：
+- 提供统一 logger
+- 支持 console 和 file
+- 格式清晰
+
+4. exceptions.py
+至少定义：
+- ConfigError
+- DatabaseError
+- DataValidationError
+- BusinessRuleError
+- ExternalServiceError
+
+5. enums.py
+至少定义：
+- ModuleCode(M0~M5)
+- TaskStatus(PENDING/RUNNING/SUCCESS/FAILED/PARTIAL_SUCCESS)
+- SourceFlag(actual/filled/rule/api)
+
+====================
+八、src/common 要求
+====================
+
+1. sql_runner.py
+必须真实实现：
+- 从文件读取 SQL
+- Jinja2 参数渲染
+- 执行 SQL
+- 查询结果
+- 事务支持
+- 执行日志
+
+建议提供：
+- load_sql(path)
+- render_sql(sql_text, params)
+- execute_sql(sql_text, params=None)
+- fetch_all(sql_text, params=None)
+- run_sql_file(path, params=None)
+
+2. validators.py
+至少实现：
+- 非空校验
+- 日期范围校验
+- 表存在性校验占位
+
+3. time_utils.py
+至少实现：
+- 日期区间展开
+- 生成 batch_no
+- 时间格式化
+
+4. file_loader.py
+至少实现：
+- 读取 yaml
+- 读取 sql
+- 统一路径处理
+
+5. postgis_utils.py
+当前只需轻量占位：
+- 检查 PostGIS
+- geometry 工具函数占位
+
+====================
+九、模块骨架要求
+====================
+
+每个模块目录都必须统一包含：
+- task.py
+- service.py
+- repository.py
+- schema.py
+- checks.py
+
+并且风格一致。
+
+每个文件要求：
+
+task.py
+- 模块入口
+- 解析参数
+- 调用 service
+- 输出状态
+
+service.py
+- 主编排逻辑
+- 调用 repository / checks / sql_runner
+
+repository.py
+- 数据访问封装
+- SQL 文件执行封装
+
+schema.py
+- pydantic 参数和结果结构
+
+checks.py
+- 输入检查
+- 输出检查占位
+
+当前业务只做占位，不要强行写细逻辑。
+
+====================
+十、jobs 要求
+====================
+
+必须实现：
+- run_m0.py
+- run_m1.py
+- run_m2.py
+- run_m3.py
+- run_m4.py
+- run_m5.py
+- run_pipeline.py
+
+要求：
+- 使用 argparse
+- 支持 --scheme-id
+- 支持 --start-date
+- 支持 --end-date
+- 支持 --overwrite
+- 支持 --config-env
+
+run_pipeline.py 要支持：
+- 按顺序执行 M0~M5
+- 可只执行部分模块
+- 单模块失败后决定是否终止
+- 打印清晰汇总日志
+
+====================
+十一、FastAPI 查询服务要求
+====================
+
+请实现轻量骨架：
+
+src/services/query_api/main.py
+- FastAPI app 可启动
+- 注册 routes
+- 提供 /health
+
+src/services/query_api/routes/tasks.py
+- POST /api/v1/tasks/scheme-run
+- POST /api/v1/tasks/module-run
+- GET /api/v1/tasks/{task_id}
+
+src/services/query_api/routes/results.py
+- GET /api/v1/results/schemes/{scheme_id}/summary
+- GET /api/v1/results/schemes/{scheme_id}/sections
+- GET /api/v1/results/schemes/{scheme_id}/ods/{od_id}/paths
+- GET /api/v1/results/schemes/{scheme_id}/toll-impact
+
+当前这些接口允许返回正式结构的 mock/TODO 响应，但不能是空壳。
+
+====================
+十二、SQL 文件要求
+====================
+
+必须创建 DDL / DML / checks 骨架文件，不要求写满业务，但必须带正式头注释。
+
+至少创建这些 DDL 文件：
+
+sql/ddl/dim/create_dim_section_info.sql
+sql/ddl/dim/create_dim_station_info.sql
+sql/ddl/dim/create_dim_road_topology.sql
+sql/ddl/dim/create_dim_scheme_info.sql
+sql/ddl/dim/create_dim_capacity_rule.sql
+sql/ddl/dim/create_dim_toll_diversion_rule.sql
+
+sql/ddl/dwd/create_dwd_single_trip_info.sql
+sql/ddl/dwd/create_dwd_scheme_section_map.sql
+sql/ddl/dwd/create_dwd_od_path_map.sql
+
+sql/ddl/dws/create_dws_section_capacity_day.sql
+sql/ddl/dws/create_dws_section_od_flow_day.sql
+sql/ddl/dws/create_dws_section_flow_day.sql
+sql/ddl/dws/create_dws_impacted_od_flow_day.sql
+sql/ddl/dws/create_dws_od_candidate_path.sql
+
+sql/ddl/ads/create_ads_od_diversion_plan.sql
+sql/ddl/ads/create_ads_toll_impact_result.sql
+sql/ddl/ads/create_ads_scheme_summary.sql
+
+每个模块目录至少放：
+- 1~2 个 dml 示例 SQL
+- 1 个 checks 示例 SQL
+
+SQL 文件必须带头部说明，例如：
+-- 功能
+-- 模块
+-- 输入表
+-- 输出表
+-- 粒度
+-- 关键字段
+
+====================
+十三、DDL 字段要求
+====================
+
+当前不要臆造过多字段，但下列关键表请至少写出这些字段：
+
+dim_section_info
+- section_id
+- section_name
+- road_id
+- road_name
+- direction
+- lane_cnt
+- section_number
+- valid_start_date
+- valid_end_date
+- created_at
+- updated_at
+
+dim_road_topology
+- from_section_id
+- to_section_id
+- relation_type
+- valid_start_date
+- valid_end_date
+- created_at
+- updated_at
+
+dwd_scheme_section_map
+- scheme_id
+- section_id
+- lane_occupied_cnt
+- construction_mode
+- speed_limit
+- distance_limit
+- valid_start_date
+- valid_end_date
+- created_at
+- updated_at
+
+dws_section_capacity_day
+- section_id
+- stat_date
+- vehicle_type
+- capacity_pcu
+- scheme_id
+- rule_id
+- created_at
+- updated_at
+
+dws_section_od_flow_day
+- section_id
+- od_id
+- stat_date
+- vehicle_type
+- flow_cnt
+- flow_pcu
+- source_flag
+- created_at
+- updated_at
+
+dws_impacted_od_flow_day
+- scheme_id
+- stat_date
+- od_id
+- vehicle_type
+- impacted_flow_cnt
+- impacted_flow_pcu
+- impact_ratio
+- adjusted_flow_cnt
+- source_flag
+- created_at
+- updated_at
+
+dws_od_candidate_path
+- scheme_id
+- od_id
+- path_id
+- original_path_id
+- control_section_id
+- original_mileage
+- candidate_mileage
+- original_fee
+- candidate_fee
+- original_jk_fee
+- candidate_jk_fee
+- mileage_diff
+- fee_diff
+- jk_fee_diff
+- candidate_rank
+- source_flag
+- created_at
+- updated_at
+
+ads_toll_impact_result
+- scheme_id
+- stat_date
+- od_id
+- vehicle_type
+- original_fee_amount
+- diverted_fee_amount
+- fee_change_amount
+- impact_type
+- recommended_path_id
+- matched_rule_id
+- created_at
+- updated_at
+
+====================
+十四、文档要求
+====================
+
+docs 下所有列出的 .org 文件必须创建，不允许空文件。
+
+要求：
+- 每个文件至少有 title
+- 至少有基础章节
+- 文档内容应与当前项目工程骨架一致
+- 不要写成泛泛模板，要结合当前项目上下文
+- 但不要臆造未确认的业务规则
+
+README.org 必须包含：
+- 项目简介
+- 一期主链路
+- 技术栈
+- 目录结构
+- 配置说明
+- 启动命令
+- 当前阶段说明
+- 风险提示
+
+CLAUDE.md 必须包含：
+- 项目边界
+- 技术约束
+- 开发原则
+- 禁止事项
+- 代码组织规则
+- SQL 规则
+- 表结构与口径规则
+- 开发顺序规则
+
+====================
+十五、你必须保证的最终结果
+====================
+
+完成后，这个工程至少应满足：
+
+1. 目录结构完整
+2. 所有必要文件已创建
+3. `pip install -e .` 可执行
+4. `python -m src.jobs.run_pipeline --scheme-id SCH_20260403_001 --start-date 2026-04-01 --end-date 2026-04-30` 可启动并输出骨架日志
+5. `uvicorn src.services.query_api.main:app --reload --port 8010` 可启动
+6. 所有模块骨架风格一致
+7. SQL 执行器真实可用
+8. 配置真实可加载
+9. 不把密码等敏感信息写死
+10. 不省略关键文件
+
+====================
+十六、最后输出要求
+====================
+
+请直接开始创建项目文件，不要只给建议。
+
+完成后请输出：
+1. 已创建的目录树
+2. 关键文件清单
+3. 如何安装
+4. 如何运行 pipeline
+5. 如何启动 query API
+6. 哪些地方目前是 TODO 占位

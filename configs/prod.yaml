@@ -1,0 +1,45 @@
+# 生产环境配置
+# 继承自 base.yaml 并覆盖生产环境特定设置
+
+debug: false
+
+logging:
+  level: INFO
+  format: "%(asctime)s | %(name)-30s | %(levelname)-8s | %(message)s"
+  console:
+    enabled: true
+    colorize: false
+  file:
+    enabled: true
+    filename: "outputs/logs/prod_{date}.log"
+    max_bytes: 104857600  # 100MB
+    backup_count: 10
+
+database:
+  driver: postgresql+psycopg
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+  user: ${DB_USER}
+  password: ${DB_PASSWORD}
+  database: ${DB_NAME}
+  schema: public
+  pool_size: 20
+  max_overflow: 40
+  echo: false
+
+query_api:
+  reload: false
+  host: "0.0.0.0"
+  port: 8010
+
+pipeline:
+  log_sql_execution: false
+  verbose: false
+  overwrite: false
+  continue_on_error: true
+
+# 生产环境安全措施
+production:
+  require_confirmation: true
+  backup_before_overwrite: true
+  audit_log_enabled: true

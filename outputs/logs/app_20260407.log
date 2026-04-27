@@ -1,0 +1,5 @@
+2026-04-07 09:28:57 | src.services.query_api.main    | INFO     | lifespan:32 | Starting Shaanxi Resilience Query API...
+2026-04-07 09:28:57 | src.app.db                     | INFO     | get_engine:40 | Database engine created
+2026-04-07 09:31:07 | src.app.db                     | ERROR    | test_connection:107 | Database connection test failed: (psycopg.errors.ConnectionTimeout) connection timeout expired
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-04-07 09:31:07 | src.services.query_api.main    | WARNING  | lifespan:38 | Database connection failed - some endpoints may not work

@@ -1,0 +1,79 @@
+# 任务执行配置
+
+tasks:
+  # 默认执行设置
+  default:
+    mode: full              # full（全量）, incremental（增量）
+    overwrite: false
+    batch_size: 10000
+    commit_interval: 5000
+    log_level: INFO
+
+  # 各模块特定设置
+  m0:
+    name: "M0 - 数据工程"
+    enabled: true
+    dependencies: []
+    sql_dir: sql/dml/m0
+    checks_dir: sql/checks/m0
+
+  m1:
+    name: "M1 - 通行能力评估"
+    enabled: true
+    dependencies: ["m0"]
+    sql_dir: sql/dml/m1
+    checks_dir: sql/checks/m1
+
+  m2:
+    name: "M2 - 流量与OD迁移统计"
+    enabled: true
+    dependencies: ["m0", "m1"]
+    sql_dir: sql/dml/m2
+    checks_dir: sql/checks/m2
+
+  m3:
+    name: "M3 - 交通影响分析"
+    enabled: true
+    dependencies: ["m1", "m2"]
+    sql_dir: sql/dml/m3
+    checks_dir: sql/checks/m3
+
+  m4:
+    name: "M4 - 分流路径优化"
+    enabled: true
+    dependencies: ["m2", "m3"]
+    sql_dir: sql/dml/m4
+    checks_dir: sql/checks/m4
+
+  m5:
+    name: "M5 - 通行费影响测算"
+    enabled: true
+    dependencies: ["m3", "m4"]
+    sql_dir: sql/dml/m5
+    checks_dir: sql/checks/m5
+
+# 流水线执行设置
+pipeline:
+  # 执行顺序
+  execution_order:
+    - m0
+    - m1
+    - m2
+    - m3
+    - m4
+    - m5
+
+  # 错误处理
+  stop_on_failure: true
+  rollback_on_failure: false
+  max_retries: 0
+
+  # 通知设置（预留）
+  notify_on_complete: false
+  notify_on_failure: true
+
+# 定时任务设置（用于 cron）
+schedule:
+  enabled: false
+  cron_expression: "0 2 * * *"  # 默认：每天凌晨 2 点
+  timezone: "Asia/Shanghai"

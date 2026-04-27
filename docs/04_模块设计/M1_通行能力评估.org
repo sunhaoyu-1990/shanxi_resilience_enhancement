@@ -1,0 +1,204 @@
+#+TITLE: M1 通行能力评估模块设计
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 模块定位
+M1 负责将施工方案信息映射到收费单元后，计算施工期间各收费单元的可通行能力结果。
+
+当前一期阶段不做复杂动态通行能力模型，而是采用“车道数配置 + 通行当量规则表”的方式，输出收费单元日可通行当量结果，为后续 M2 / M3 提供基础输入。
+
+* 2. 当前阶段目标
+当前阶段 M1 的目标是：
+- 建立车道数—通行当量规则表
+- 将施工方案映射结果转换为收费单元可通行能力
+- 输出施工期间收费单元日可通行当量表
+- 为后续交通影响分析提供稳定输入
+
+当前阶段不做：
+- 坡度、桥隧、限速、限距、大车率等复杂动态能力模型
+- 完整机理建模
+- 动态时变通行能力拟合
+
+* 3. 输入
+** 3.1 上游输入表
+- dim_section_info
+- dwd_scheme_section_map
+- dim_capacity_rule
+
+** 3.2 输入内容说明
+来自 M0 的核心输入是：
+- 哪些收费单元受施工影响
+- 每个收费单元施工期间占用多少车道
+- 施工模式、限速、限距等附加约束（当前先预留，不作为主计算项）
+
+规则侧输入为：
+- 车道数量与可通行当量的对应关系
+
+* 4. 输出
+** 4.1 核心输出表
+- dws_section_capacity_day
+
+** 4.2 输出用途
+供 M2 / M3 进行：
+- 收费单元历史流量与可通行能力对比
+- 施工影响比例估计
+- 受影响 OD 与迁移流量测算
+
+* 5. 模块边界
+M1 只负责：
+- 根据施工影响后的车道情况
+- 输出收费单元在施工期间的可通行当量
+
+M1 不负责：
+- 历史流量统计
+- OD 迁移补全
+- 交通影响比例修正
+- 分流路径生成
+- 通行费测算
+
+* 6. 核心处理逻辑
+
+** 6.1 获取收费单元基础能力约束
+从 dim_section_info 获取：
+- section_id
+- lane_cnt
+- 方向
+- 基础属性
+
+** 6.2 获取施工占道信息
+从 dwd_scheme_section_map 获取：
+- scheme_id
+- section_id
+- lane_occupied_cnt
+- 有效时间范围
+
+** 6.3 计算可用车道数
+基本思路：
+- available_lane_cnt = lane_cnt - lane_occupied_cnt
+
+当前约束：
+- available_lane_cnt 不得小于 0
+- 若 available_lane_cnt = 0，需要业务确认是“封闭”还是“不可通行”
+
+** 6.4 匹配通行当量规则
+根据 available_lane_cnt 匹配 dim_capacity_rule 中的通行能力规则。
+
+当前阶段默认：
+- 用固定规则表
+- 按车型输出 capacity_pcu
+- 后续可扩展更多影响因素
+
+** 6.5 生成施工期间日能力结果
+将施工方案有效期展开到自然日粒度，生成：
+- section_id
+- stat_date
+- vehicle_type
+- capacity_pcu
+- scheme_id
+- rule_id
+
+* 7. 当前最小输入输出定义
+
+** 输入最小集
+- dim_section_info(section_id, lane_cnt)
+- dwd_scheme_section_map(scheme_id, section_id, lane_occupied_cnt, valid_start_date, valid_end_date)
+- dim_capacity_rule(lane_cnt, vehicle_type, capacity_pcu)
+
+** 输出最小集
+- dws_section_capacity_day(section_id, stat_date, vehicle_type, capacity_pcu, scheme_id)
+
+* 8. 关键表设计
+
+** dim_capacity_rule
+*** 用途
+车道数-通行当量规则表，是当前阶段 M1 的核心规则来源。
+
+*** 当前关键字段
+- rule_id
+- lane_cnt
+- vehicle_type
+- capacity_pcu
+- valid_start_date
+- valid_end_date
+
+*** 当前原则
+- 先按固定规则表实现
+- 后续允许扩展附加条件字段
+
+** dws_section_capacity_day
+*** 用途
+记录施工期间收费单元在日粒度下的可通行当量结果。
+
+*** 粒度
+收费单元 × 日期 × 车型
+
+*** 当前关键字段
+- section_id
+- stat_date
+- vehicle_type
+- capacity_pcu
+- scheme_id
+- rule_id
+- created_at
+- updated_at
+
+* 9. 数据校验要求
+
+** 9.1 收费单元能力输入校验
+- section_id 必须存在于 dim_section_info
+- lane_cnt 必须大于等于 0
+
+** 9.2 施工映射校验
+- lane_occupied_cnt 不得为负
+- lane_occupied_cnt 不得长期大于 lane_cnt
+- 施工有效期不得为空
+
+** 9.3 规则表校验
+- 同一 lane_cnt + vehicle_type + 有效期不得重复
+- capacity_pcu 必须大于 0
+
+** 9.4 输出表校验
+- 同一 section_id + stat_date + vehicle_type + scheme_id 不得重复
+- capacity_pcu 不得为负
+- 封闭断面需明确处理标记
+
+* 10. Python 任务建议
+建议至少拆分以下任务：
+
+- run_m1_prepare_capacity_rule
+- run_m1_expand_scheme_dates
+- run_m1_build_section_capacity_day
+- run_m1_check_output
+- run_m1_all
+
+* 11. SQL 清单建议
+建议至少建立以下 SQL：
+
+- sql/ddl/dim/create_dim_capacity_rule.sql
+- sql/ddl/dws/create_dws_section_capacity_day.sql
+
+- sql/dml/m1/build_dim_capacity_rule.sql
+- sql/dml/m1/build_dws_section_capacity_day.sql
+
+- sql/checks/m1/check_dim_capacity_rule.sql
+- sql/checks/m1/check_dws_section_capacity_day.sql
+
+* 12. 风险点
+** 风险 1：车道数量口径不一致
+收费单元基础车道数与施工方案占道数的口径可能不一致。
+
+** 风险 2：施工期展开规则
+若施工方案只给出区间范围，没有完整日期细节，需补充展开逻辑。
+
+** 风险 3：封闭场景处理
+available_lane_cnt = 0 时，后续模块如何解释需要统一。
+
+** 风险 4：规则表过于粗糙
+当前规则表可支撑 MVP，但难以完全反映复杂施工场景。
+
+* 13. 当前 TODO
+- [ ] 明确 lane_cnt 的来源字段
+- [ ] 明确 lane_occupied_cnt 的来源字段
+- [ ] 明确 capacity_pcu 初版规则表口径
+- [ ] 明确封闭断面处理标识
+- [ ] 明确施工日期展开细则

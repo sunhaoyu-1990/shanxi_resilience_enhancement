@@ -1,0 +1,225 @@
+#+TITLE: 接口总览
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 接口定位
+当前项目接口分为两类：
+- 任务运行接口
+- 结果查询接口
+
+接口原则：
+- 不做在线复杂链路重算
+- 不承担研究逻辑
+- 只负责任务触发、状态查询、结果读取
+
+* 2. 基本约定
+
+** 2.1 统一前缀
+/api/v1
+
+** 2.2 统一返回结构
+#+begin_src json
+{
+  "code": 0,
+  "message": "success",
+  "data": {},
+  "request_id": "REQ_20260403_0001"
+}
+#+end_src
+
+** 2.3 状态定义
+- PENDING
+- RUNNING
+- SUCCESS
+- FAILED
+- PARTIAL_SUCCESS
+
+* 3. 任务运行接口
+
+** 3.1 创建整链路测算任务
+*** 路径
+POST /api/v1/tasks/scheme-run
+
+*** 作用
+创建一个施工方案测算任务，按配置串行或分阶段执行 M0 ~ M5。
+
+*** 请求体骨架
+#+begin_src json
+{
+  "scheme_id": "SCH_20260403_001",
+  "run_mode": "full",
+  "stat_date_start": "2026-04-01",
+  "stat_date_end": "2026-04-30",
+  "overwrite": false,
+  "operator": "sun_haoyu"
+}
+#+end_src
+
+*** 响应体骨架
+#+begin_src json
+{
+  "code": 0,
+  "message": "task created",
+  "data": {
+    "task_id": "TASK_20260403_0001",
+    "scheme_id": "SCH_20260403_001",
+    "status": "PENDING"
+  },
+  "request_id": "REQ_xxx"
+}
+#+end_src
+
+** 3.2 创建单模块运行任务
+*** 路径
+POST /api/v1/tasks/module-run
+
+*** 作用
+单独运行指定模块，用于开发调试与联调。
+
+*** 请求体骨架
+#+begin_src json
+{
+  "module_code": "M2",
+  "scheme_id": "SCH_20260403_001",
+  "run_params": {
+    "rebuild": true
+  }
+}
+#+end_src
+
+** 3.3 查询任务状态
+*** 路径
+GET /api/v1/tasks/{task_id}
+
+*** 返回字段建议
+- task_id
+- scheme_id
+- module_code
+- status
+- started_at
+- ended_at
+- duration_seconds
+- error_message
+
+** 3.4 查询任务日志摘要
+*** 路径
+GET /api/v1/tasks/{task_id}/logs
+
+*** 返回字段建议
+- module_code
+- status
+- start_time
+- end_time
+- duration_seconds
+- input_tables
+- output_tables
+- affected_rows
+- message
+
+* 4. 结果查询接口
+
+** 4.1 查询施工方案汇总结果
+*** 路径
+GET /api/v1/results/schemes/{scheme_id}/summary
+
+*** 返回内容建议
+- impacted_section_cnt
+- impacted_od_cnt
+- total_fee_increase
+- total_fee_decrease
+- recommended_plan_cnt
+
+** 4.2 查询某方案受影响收费单元
+*** 路径
+GET /api/v1/results/schemes/{scheme_id}/sections
+
+*** 查询参数
+- page
+- page_size
+- road_id
+- direction
+
+*** 返回内容建议
+- section_id
+- section_name
+- road_id
+- direction
+- lane_occupied_cnt
+- construction_mode
+- impact_level
+
+** 4.3 查询某方案下某 OD 的原路径与替代路径对比
+*** 路径
+GET /api/v1/results/schemes/{scheme_id}/ods/{od_id}/paths
+
+*** 返回内容建议
+- 原路径信息
+- 候选路径列表
+- 分流管控单元
+- 里程对比
+- 通行费对比
+- 交控通行费对比
+- 推荐路径标识
+
+** 4.4 查询某方案通行费影响结果
+*** 路径
+GET /api/v1/results/schemes/{scheme_id}/toll-impact
+
+*** 返回内容建议
+- total_fee_increase
+- total_fee_decrease
+- by_vehicle_type
+- by_od
+- recommendation_summary
+
+* 5. 错误码骨架
+
+** 5.1 参数类
+- 1001 参数缺失
+- 1002 参数格式错误
+- 1003 参数取值非法
+
+** 5.2 配置与连接类
+- 2001 配置加载失败
+- 2002 数据库连接失败
+- 2003 外部路径接口连接失败
+
+** 5.3 数据类
+- 3001 输入表不存在
+- 3002 输出表写入失败
+- 3003 结果表为空
+- 3004 主键冲突
+
+** 5.4 业务类
+- 4001 施工方案不存在
+- 4002 模块输入不满足
+- 4003 业务规则未配置
+
+** 5.5 系统类
+- 5001 未知内部错误
+
+* 6. 当前接口范围说明
+当前接口只服务于：
+- 任务触发
+- 状态追踪
+- 结果读取
+
+当前不支持：
+- 在线动态寻优
+- 在线全链路复杂重算
+- 中间支撑数据的完整解释型查询
+
+* 7. 后续扩展方向
+后续可考虑增加：
+- 报表导出接口
+- 按模块结果下载接口
+- 路径图形化结果接口
+- 规则配置查询接口
+- 管理端任务控制接口
+
+* TODO
+- [ ] 明确认证方式
+- [ ] 明确分页统一规范
+- [ ] 明确排序与筛选规则
+- [ ] 明确 request_id 生成规则
+- [ ] 明确日志持久化表结构

@@ -1,0 +1,94 @@
+#陕交控多路段改扩建韧性提升项目（一期）
+#Python package configuration
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shaanxi-resilience"
+version = "0.1.0"
+# README.org is used for project documentation (Org mode)
+# pyproject.toml does not support .org as long_description
+description = "Shaanxi Provincial Expressway Multi-section Reconstruction Resilience Enhancement Project (Phase 1)"
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+authors = [
+  { name = "Sun Haoyu", email = "sunha@example.com" }
+]
+keywords = ["expressway", "construction", "traffic", "capacity", "toll"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+  "sqlalchemy>=2.0.0",
+  "psycopg[binary]>=3.1.0",
+  "pydantic>=2.0.0",
+  "pydantic-settings>=2.0.0",
+  "pyyaml>=6.0",
+  "jinja2>=3.1.0",
+  "fastapi>=0.100.0",
+  "uvicorn[standard]>=0.23.0",
+  "python-dotenv>=1.0.0",
+  "python-dateutil>=2.8.0",
+  "pandas>=3.0.2",
+  "openpyxl>=3.1.5",
+  "xlrd>=2.0.2",
+  "tqdm>=4.67.3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.4.0",
+  "pytest-asyncio>=0.21.0",
+  "pytest-cov>=4.1.0",
+  "ruff>=0.1.0",
+  "mypy>=1.5.0",
+]
+test = [
+  "pytest>=7.4.0",
+  "pytest-asyncio>=0.21.0",
+]
+
+[project.scripts]
+run-m0 = "src.jobs.run_m0:main"
+run-m1 = "src.jobs.run_m1:main"
+run-m2 = "src.jobs.run_m2:main"
+run-m3 = "src.jobs.run_m3:main"
+run-m4 = "src.jobs.run_m4:main"
+run-m5 = "src.jobs.run_m5:main"
+run-pipeline = "src.jobs.run_pipeline:main"
+run-query-api = "src.services.query_api.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.setuptools.package-data]
+src = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"

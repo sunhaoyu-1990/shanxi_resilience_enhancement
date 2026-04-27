@@ -1,0 +1,188 @@
+#+TITLE: M6 OD-Section-Path 映射模块设计
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 模块定位
+
+M6 负责构建 OD-Section-Path 映射表，是一期主链路的最终输出模块之一。
+
+核心职责：
+- 从 Hive 表读取原始通行记录（enid, exid, intervalgroup）
+- 对 intervalgroup 进行拓扑修复（M2 模块）
+- 将收费单元ID序列映射为 section_number 并去重生成 numpath
+- 按 fixed_ig 分组累加统计量，聚合写入两张 PostgreSQL 表供下游使用
+
+* 2. 输入输出
+
+** 2.1 输入
+
+| 来源 | 说明 |
+|------|------|
+| Hive: dbbase2026.gstx_exit_with_min_fee202603 | 原始通行记录（约3923万条） |
+| dwd_section_path | 收费单元ID → section_number 映射 |
+| dwd_tom_noderelation | 路网拓扑关系（用于 intervalgroup 修复） |
+| dwd_tom_network_edges | pgRouting 拓扑边（用于最短路径修复） |
+
+** 2.2 输出表
+
+| 表名 | 说明 | 主键粒度 |
+|------|------|---------|
+| dwd_od_section_path_map | OD-Section-Path 主映射表（统计量最大的 fixed_ig） | (enid, exid, numpath, version_yyyyMM) |
+| dwd_od_section_path_numpath_freq | numpath 下各 fixed_ig 统计量 | (enid, exid, numpath, fixed_intervalgroup, version_yyyyMM) |
+
+** 2.3 重要说明：只保留 fixed_ig
+
+- 数据库中只写入 `fixed_intervalpath` / `fixed_intervalgroup`（拓扑修复后的路径）
+- 原始 intervalgroup 不落库（测试时在 JSON 中查看，不写入数据库）
+- `step1_numpath`（第一步相邻去重结果）仅存于内存用于测试 JSON 对比，不落库
+
+* 3. 核心算法
+
+** 3.1 intervalgroup 修复
+
+复用 M2 模块的 `fix_intervalgroup_batch`，基于拓扑关系修复两类问题：
+- 遗漏：相邻单元在拓扑上不相邻，补充最短路径
+- 错误：中间单元方向识别错误，尝试反向
+
+** 3.2 section_number 映射与去重（核心）
+
+输入：修复后的 intervalgroup
+输出：去重后的 numpath（两步去重）和 step1_numpath（第一步结果，仅测试用）
+
+处理分两步：
+
+*** Step 1：相邻去重
+
+将相邻相同的 section_number 合并。
+
+算法：遍历 numbers 列表，如果当前值与上一个不同则保留。
+
+*** Step 2：相邻 pair 去重
+
+从两个不同 offset 位置开始组合 tuple，比较哪种结果更短，选择更优的。
+
+算法：
+1. 从 offset=0 和 offset=1 分别生成 pair 列表
+2. 遍历 pair：append(a) → append(b)
+3. 如果当前 pair (a,b) 与下一个 pair (c,d) 完全相同，跳过整个 (c,d)
+4. 拼接头尾落单元素
+
+**去重结果展示（step1_numpath vs numpath）**：
+
+| 字段 | 说明 | 存储位置 |
+|------|------|---------|
+| step1_numpath | 仅相邻去重 | 仅测试 JSON，不落库 |
+| numpath | 两步去重后（最终） | 写入数据库，用于聚合 |
+
+* 4. 数据库表结构
+
+** 4.1 dwd_od_section_path_map
+
+主键：(enid, exid, numpath, version_yyyyMM)
+
+只保留 fixed_intervalpath，无原始 intervalgroup。
+
+#+BEGIN_SRC sql
+CREATE TABLE IF NOT EXISTS dwd_od_section_path_map (
+    enid           VARCHAR(64)     NOT NULL,
+    exid           VARCHAR(64)     NOT NULL,
+    numpath        VARCHAR(512)    NOT NULL,
+    version_yyyyMM VARCHAR(6)      NOT NULL,
+
+    fixed_intervalpath TEXT,           -- 修复后的 intervalgroup（唯一路径字段）
+    intervalpath_cnt   BIGINT DEFAULT 0,  -- 该 fixed_ig 在此 numpath 下的统计量
+    total_trip_cnt     BIGINT DEFAULT 0,  -- 该 (enid, exid, numpath) 总通行记录数
+    path_freq_ratio    NUMERIC(5,4) DEFAULT 0,  -- intervalpath_cnt / total_trip_cnt
+
+    source_flag VARCHAR(32)  DEFAULT 'hive_computed',
+    created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT pk_dwd_od_section_path_map
+        PRIMARY KEY (enid, exid, numpath, version_yyyyMM)
+);
+#+END_SRC
+
+** 4.2 dwd_od_section_path_numpath_freq
+
+主键：(enid, exid, numpath, fixed_intervalgroup, version_yyyyMM)
+
+只保留 fixed_intervalgroup，无原始 intervalgroup。
+
+#+BEGIN_SRC sql
+CREATE TABLE IF NOT EXISTS dwd_od_section_path_numpath_freq (
+    enid               VARCHAR(64)  NOT NULL,
+    exid               VARCHAR(64)  NOT NULL,
+    numpath            VARCHAR(512) NOT NULL,
+    fixed_intervalgroup TEXT        NOT NULL,
+    version_yyyyMM     VARCHAR(6)   NOT NULL,
+
+    ig_count  BIGINT DEFAULT 0,  -- 该 fixed_ig 在此 numpath 下的统计量
+    ig_rank   INT    DEFAULT 0,  -- 按 ig_count 降序排名，1=统计量最大
+
+    source_flag VARCHAR(32) DEFAULT 'hive_computed',
+    created_at  TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT pk_dwd_od_section_path_numpath_freq
+        PRIMARY KEY (enid, exid, numpath, fixed_intervalgroup, version_yyyyMM)
+);
+#+END_SRC
+
+** 4.3 聚合逻辑
+
+map 表中 `fixed_intervalpath` 的选择逻辑：
+- 按 `fixed_ig` 分组累加统计量：`fixed_ig_total: {fixed_ig: count_sum}`
+- `total_trip_cnt` = 所有 fixed_ig count 之和
+- `best_fixed_ig` = `fixed_ig_total` 中值最大的 key
+- `intervalpath_cnt` = `fixed_ig_total[best_fixed_ig]`
+- `path_freq_ratio` = `intervalpath_cnt / total_trip_cnt`
+
+* 5. 任务运行
+
+** 5.1 命令行用法
+
+#+BEGIN_SRC bash
+# 测试模式（100条，结果存本地 JSON）
+uv run python -m src.jobs.run_m6 --version 202603 --batch-size 100 --save-local
+
+# 全量模式（50万条/批，直接落库）
+uv run python -m src.jobs.run_m6 --version 202603 --batch-size 500000
+#+END_SRC
+
+** 5.2 参数说明
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| --version | 202603 | 版本年月 |
+| --batch-size | 500000 | 每批处理记录数 |
+| --save-local | False | 是否保存结果到本地 JSON |
+| --output-dir | outputs/m6_test | 本地输出目录 |
+| --section-version | 202603 | dwd_section_path 版本 |
+| --topo-version | 202512 | 拓扑数据版本 |
+
+** 5.3 测试结果（100条记录）
+
+- 处理原始记录: 100
+- map 记录: 15
+- freq 记录: 20
+- 路径一致性均值: 0.9379
+- 高一致性(>=0.9): 13 条
+- 低一致性(<0.7): 2 条
+
+* 6. 核心文件
+
+| 文件 | 说明 |
+|------|------|
+| src/modules/m6_od_section_path/service.py | 业务编排层（_map_and_dedupe 核心算法） |
+| src/modules/m6_od_section_path/repository.py | 数据访问层（PG upsert，幂等写入） |
+| src/modules/m6_od_section_path/schema.py | Pydantic 模型 |
+| src/jobs/run_m6.py | 命令行入口 |
+| sql/ddl/dwd/create_dwd_od_section_path_map.sql | map 表 DDL |
+| sql/ddl/dwd/create_dwd_od_section_path_numpath_freq.sql | freq 表 DDL |
+| outputs/m6_test/m6_test_v202603.json | 测试结果样例 |
+
+* 7. 下游使用
+
+M6 输出表供以下模块使用：
+- M5 通行费影响测算：基于 numpath 查询历史通行费
+- 分流路径优化：基于 numpath 匹配历史路径

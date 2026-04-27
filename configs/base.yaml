@@ -1,0 +1,93 @@
+# 项目基础配置
+# 所有环境都继承自本文件
+
+project:
+  name: shaanxi-resilience
+  version: 0.1.0
+  description: |
+    陕交控多路段改扩建韧性提升项目（一期）后端算法工程
+
+paths:
+  # 根路径
+  project_root: .
+  configs_dir: configs
+  sql_dir: sql
+  docs_dir: docs
+
+  # 输出路径
+  outputs_dir: outputs
+  logs_dir: outputs/logs
+  exports_dir: outputs/exports
+  reports_dir: outputs/reports
+  temp_dir: outputs/temp
+
+  # 源码路径
+  src_dir: src
+  modules_dir: src/modules
+  jobs_dir: src/jobs
+  services_dir: src/services
+
+  # SQL 路径
+  ddl_dir: sql/ddl
+  dml_dir: sql/dml
+  checks_dir: sql/checks
+  views_dir: sql/views
+
+pipeline:
+  # 默认执行模式：full（全量）/ incremental（增量）
+  default_mode: full
+
+  # 是否覆盖已有结果
+  overwrite: false
+
+  # 模块执行顺序
+  module_order:
+    - m0
+    - m1
+    - m2
+    - m3
+    - m4
+    - m5
+
+  # 批处理设置
+  batch_size: 10000
+  commit_interval: 5000
+
+  # 错误处理
+  continue_on_error: false
+  log_sql_execution: true
+
+query_api:
+  # API 标题和版本
+  title: 陕交控韧性提升查询API
+  version: 0.1.0
+  description: 施工方案分析结果查询服务
+
+  # CORS 设置
+  cors_origins:
+    - "*"
+
+  # 响应分页
+  default_page_size: 50
+  max_page_size: 1000
+
+# 数据层设置
+data_layer:
+  # 默认 Schema
+  default_schema: public
+
+  # ODS 层设置
+  ods_retention_days: 365
+
+  # 命名规范
+  use_section_number: true
+  require_valid_dates: true
+
+# 校验设置
+validation:
+  strict_mode: true
+  required_fields:
+    section_number: true
+    scheme_id: true
+    section_id: true
+    od_id: true

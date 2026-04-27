@@ -1,0 +1,54 @@
+# 日志配置
+
+logging:
+  # 全局日志级别
+  level: INFO
+
+  # 日志格式
+  format: "%(asctime)s | %(name)-30s | %(levelname)-8s | %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+
+  # 控制台输出设置
+  console:
+    enabled: true
+    level: INFO
+    colorize: true
+    stream: ext://sys.stdout
+
+  # 文件输出设置
+  file:
+    enabled: true
+    level: DEBUG
+    filename: "outputs/logs/app_{date}.log"
+    max_bytes: 10485760   # 每个文件 10MB
+    backup_count: 5        # 保留 5 个备份文件
+    encoding: utf-8
+
+  # 模块特定日志级别
+  loggers:
+    src.app: INFO
+    src.common: INFO
+    src.modules: INFO
+    src.jobs: INFO
+    src.services: INFO
+    sqlalchemy.engine: WARNING  # 减少 SQLAlchemy 噪音
+    sqlalchemy.pool: WARNING
+
+  # 特殊日志记录
+  special:
+    sql_execution:
+      enabled: true
+      level: DEBUG
+      log_sql_params: false  # 调试时设为 true，生产环境绝对不要
+    performance:
+      enabled: true
+      level: INFO
+      log_execution_time: true
+      slow_query_threshold_ms: 5000
+
+# 输出目录
+output:
+  logs_dir: outputs/logs
+  exports_dir: outputs/exports
+  reports_dir: outputs/reports
+  temp_dir: outputs/temp

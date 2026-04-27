@@ -1,0 +1,311 @@
+#+TITLE: 主键与编码规范
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 目标
+本文档用于统一本项目中的主键设计和编码规则，确保：
+- 各层表之间可稳定关联
+- 历史版本可追溯
+- 多模块之间主键口径一致
+- 后续数据表到位后可平滑细化而不推翻整体骨架
+
+说明：
+当前部分真实数据字段和编码细节尚未完全确认，因此本文档采用“先统一命名与原则，后细化编码格式”的方式。
+
+* 2. 总体原则
+
+** 2.1 业务主键优先
+优先采用业务上稳定、可解释的主键，而不是无意义自增 ID 作为跨表关联主键。
+
+例如：
+- section_id
+- station_id
+- scheme_id
+- od_id
+- path_id
+
+** 2.2 必要时允许技术代理键
+若原始业务主键不稳定、过长或无法唯一，可在表内引入技术代理键，但对外主关联键仍应保留业务主键。
+
+** 2.3 主键与唯一键分开设计
+- 主键：系统内唯一定位一行
+- 唯一键：业务上唯一约束一组字段
+
+例如：
+某日统计表可主键使用复合键；
+也可增加 surrogate key 作为技术主键，但业务唯一性仍需约束。
+
+** 2.4 编码规则必须可追溯
+任何编码字段都应说明：
+- 组成规则
+- 来源字段
+- 是否人工可读
+- 是否跨版本稳定
+
+* 3. 当前核心实体主键建议
+
+** 3.1 收费单元主键
+字段名：
+- section_id
+
+原则：
+- 使用收费单元统一唯一标识
+- 需结合 valid_start_date / valid_end_date 处理历史版本
+
+说明：
+当前若收费单元跨年份存在版本变化，不建议只靠名称关联。
+
+** 3.2 收费站主键
+字段名：
+- station_id
+
+原则：
+- 使用收费站统一唯一标识
+- 历史版本变化时同样需考虑有效期
+
+** 3.3 路网拓扑关系主键
+建议业务唯一键：
+- from_section_id
+- to_section_id
+- valid_start_date
+
+说明：
+拓扑关系本质上是关系事实，通常采用复合唯一键更合适。
+
+** 3.4 施工方案主键
+字段名：
+- scheme_id
+
+原则：
+- 每个施工方案唯一
+- 若一个工程存在多个方案版本，应能区分版本
+
+建议后续可补充：
+- scheme_version
+或
+- version_no
+
+** 3.5 OD 主键
+字段名：
+- od_id
+
+当前建议原则：
+- 由 entry_station_id + exit_station_id 组合生成统一编码
+- 同一入口收费站 + 出口收费站组合，对应唯一 od_id
+
+说明：
+当前阶段先用规则生成，后续可根据真实数据统一编码体系。
+
+** 3.6 路径主键
+字段名：
+- path_id
+
+原则：
+- 同一 OD 下不同路径必须可区分
+- path_id 必须可追溯到路径序列或外部来源
+
+说明：
+当前阶段允许：
+- 使用外部接口返回的路径标识
+或
+- 使用内部生成规则
+但一旦选定后，必须在全项目保持一致。
+
+** 3.7 规则主键
+字段名：
+- rule_id
+
+适用于：
+- dim_capacity_rule
+- dim_toll_diversion_rule
+等规则表。
+
+** 3.8 任务主键
+字段名：
+- task_id
+
+用于：
+- 批处理任务
+- 接口触发任务
+- 日志追踪
+
+* 4. 复合主键/业务唯一键建议
+
+** 4.1 日统计类结果表
+常见业务唯一键建议：
+
+- dws_section_capacity_day
+  - section_id
+  - stat_date
+  - vehicle_type
+  - scheme_id
+
+- dws_section_od_flow_day
+  - section_id
+  - od_id
+  - stat_date
+  - vehicle_type
+
+- dws_section_flow_day
+  - section_id
+  - stat_date
+  - vehicle_type
+
+- dws_impacted_od_flow_day
+  - scheme_id
+  - stat_date
+  - od_id
+  - vehicle_type
+
+- dws_od_candidate_path
+  - scheme_id
+  - od_id
+  - path_id
+
+- ads_toll_impact_result
+  - scheme_id
+  - stat_date
+  - od_id
+  - vehicle_type
+
+** 4.2 映射类表
+常见业务唯一键建议：
+
+- dwd_scheme_section_map
+  - scheme_id
+  - section_id
+  - valid_start_date
+
+- dwd_od_path_map
+  - od_id
+  - path_id
+
+* 5. 编码规则建议
+
+** 5.1 scheme_id
+当前建议格式：
+#+begin_example
+SCH_<yyyymmdd>_<nnn>
+#+end_example
+
+示例：
+- SCH_20260403_001
+
+说明：
+当前先满足可读和可追踪，后续若接业务系统方案号，可改为业务号 + 版本号体系。
+
+** 5.2 od_id
+当前建议格式：
+#+begin_example
+<entry_station_id>_<exit_station_id>
+#+end_example
+
+示例：
+- ST001_ST099
+
+说明：
+若后续收费站 ID 本身较长，可引入 hash 或统一中间映射表，但外部文档仍保留原始来源说明。
+
+** 5.3 path_id
+当前建议两种可选方式：
+
+方式 A：外部路径主键直用
+#+begin_example
+PATH_EXT_<source_id>
+#+end_example
+
+方式 B：内部生成
+#+begin_example
+PATH_<od_id>_<seq_no>
+#+end_example
+
+当前建议：
+- 若外部接口 path_id 稳定，则优先复用
+- 若外部接口不稳定，则内部统一生成
+
+** 5.4 rule_id
+建议格式：
+#+begin_example
+RULE_<type>_<nnn>
+#+end_example
+
+示例：
+- RULE_CAPACITY_001
+- RULE_TOLL_003
+
+** 5.5 task_id
+建议格式：
+#+begin_example
+TASK_<yyyymmdd>_<nnnn>
+#+end_example
+
+示例：
+- TASK_20260403_0001
+
+** 5.6 batch_no / version_no
+建议格式：
+#+begin_example
+BATCH_<yyyymmddhhmmss>
+VERSION_<nn>
+#+end_example
+
+* 6. section_number 特别说明
+字段名：
+- section_number
+
+含义：
+- 同一条单一路径上的所有收费单元共享同一个 section_number
+
+规则原则：
+- 作为归并辅助键，不替代 section_id
+- 用于路径归并、断面归并、映射辅助
+- 任何使用 section_number 的结果，必须可追溯回具体 section_id
+
+当前注意：
+- section_number 不是收费单元主键
+- 不能直接把 section_number 当成唯一收费单元标识使用
+
+* 7. 历史版本处理原则
+
+** 7.1 维表历史版本
+对于收费单元、收费站、拓扑等历史可能变化的维表，建议通过：
+- valid_start_date
+- valid_end_date
+管理有效期
+
+** 7.2 结果表版本
+对于批量跑数结果，建议增加：
+- batch_no
+或
+- version_no
+
+便于：
+- 重跑
+- 覆盖
+- 对比不同批次结果
+
+* 8. 接口与数据库编码一致性原则
+接口返回中的核心标识，尽量与数据库主键保持一致：
+- scheme_id
+- od_id
+- path_id
+- section_id
+- station_id
+
+避免：
+- 数据库里一套主键
+- 接口里另一套临时编码
+
+* 9. 禁止事项
+- 禁止同一主键字段多个命名版本并存
+- 禁止 path_id 生成规则一会儿外部、一会儿内部且无标记
+- 禁止把 section_number 当作 section_id 使用
+- 禁止没有有效期就强行覆盖历史维表
+- 禁止无文档说明修改主键规则
+
+* 10. 当前 TODO
+- [ ] 确认收费单元原始主键字段
+- [ ] 确认收费站原始主键字段
+- [ ] 确认 scheme_id 是否需接业务系统编号
+- [ ] 确认 path_id 最终采用外部还是内部规则
+- [ ] 确认 batch_no 是否全结果表统一启用
