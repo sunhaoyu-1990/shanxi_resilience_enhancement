@@ -272,6 +272,34 @@ class TestFixIntervalgroupWithTime:
             x_time = times[x_idx]
             assert "10:" in x_time  # Should be around 10:30
 
+    def test_shortest_path_case2_sets_error(self):
+        """情况2 shortest_path返回None时标记error"""
+        adj_map = {}  # No edges — topo_check returns False for all
+        topo = self._make_topo(adj_map)  # shortest_path returns None
+
+        result = fix_intervalgroup(
+            "A|B|C",
+            topo,
+            intervaltimegroup="2026-03-15 10:00:00|2026-03-15 10:10:00|2026-03-15 10:20:00",
+        )
+        # Should fall through to error mark
+        assert result.error is not None
+        assert "path_fill_failed" in result.error
+
+    def test_shortest_path_case3b_sets_error(self):
+        """情况3b shortest_path返回None时标记error"""
+        adj_map = {}  # No edges
+        topo = self._make_topo(adj_map)
+
+        result = fix_intervalgroup(
+            "A|G007|C",
+            topo,
+            intervaltimegroup="2026-03-15 10:00:00|2026-03-15 10:10:00|2026-03-15 10:20:00",
+        )
+        # reverse_section_id(G007) → None, shortest_path returns None
+        assert result.error is not None
+        assert "path_fill_failed" in result.error
+
 
 # ============================================================================
 # fix_intervalgroup_batch

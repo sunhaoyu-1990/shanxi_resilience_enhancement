@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -172,7 +173,13 @@ def _interpolate_times(
 
 
 class TopologyChecker:
-    """拓扑查询器"""
+    """拓扑查询器
+
+    Thread/fork safety:
+    - _next_cache is read-only after load_topology_cache(), safe to share via fork CoW.
+    - _pg_connection is lazy-initialized per process. After fork, each child process
+      must call _reset_pg_connection() or let it auto-reconnect on first DB call.
+    """
 
     def __init__(self, version: str = "202512"):
         """
@@ -183,9 +190,14 @@ class TopologyChecker:
         self._next_cache: dict[str, set[str]] = {}
         self._reverse_cache: dict[str, str] = {}
         self._pg_connection = None
+        self._cache_loaded = False
+
+    def _reset_pg_connection(self) -> None:
+        """Reset PG connection (call after fork to avoid sharing connections across processes)"""
+        self._pg_connection = None
 
     def _get_pg_connection(self):
-        """获取 PostgreSQL 连接（延迟初始化）"""
+        """获取 PostgreSQL 连接（延迟初始化，fork-safe）"""
         if self._pg_connection is None:
             from src.app.db import get_engine
 
@@ -197,6 +209,8 @@ class TopologyChecker:
         """
         预加载拓扑邻接关系到内存
         适用于处理批量数据时减少数据库查询
+
+        After loading, _next_cache is frozen (read-only) and safe for fork CoW sharing.
         """
         from sqlalchemy import text
 
@@ -218,6 +232,7 @@ class TopologyChecker:
                 self._next_cache[en_id] = set()
             self._next_cache[en_id].add(ex_id)
 
+        self._cache_loaded = True
         logger.info(f"Loaded {len(self._next_cache)} topology entries")
 
     def topo_next(self, section_id: str) -> set[str]:
@@ -574,7 +589,7 @@ def fix_intervalgroup_batch(
         topology.load_topology_cache()
 
     results = []
-    for record in records:
+    for record in tqdm(records, desc="Processing records"):
         tradeid = record.get("tradeid", "")
         intervalgroup = record.get("intervalgroup", "")
         intervaltimegroup = record.get("intervaltimegroup", "")

@@ -132,6 +132,25 @@
 
 ---
 
+### 9. shanxi-resilience-parallel-etl ⭐ 新增
+**文件**: `.claude/skills/shanxi-resilience-parallel-etl/SKILL.md`
+
+**功能**:
+- 将单进程 ETL/统计任务改造为多进程并行模式
+- CSV 分区读取（行偏移索引 + iter_csv_partition）
+- Fork-safe DB 连接处理（_reset_pg_connection + SQLAlchemy engine 重置）
+- ON CONFLICT 行级原子累加（多 Worker 写入安全）
+- Mini-batch 即时刷盘（消灭全局聚合字典）
+- 批量 batch_upsert（减少 ~90% DB 往返）
+- Worker 数量决策 + 内存控制
+
+**适用场景**:
+- 批量处理任务运行太慢需要并行化
+- 大 CSV 文件多进程流式读取
+- 多进程并发写入同一张表
+
+---
+
 ## 🚀 Skill 快速调用
 
 ```
@@ -158,6 +177,9 @@ skill: shanxi-resilience-unit-test-writer
 
 # Git 操作
 skill: shanxi-resilience-git
+
+# 批量处理并行化
+skill: shanxi-resilience-parallel-etl
 ```
 
 ---

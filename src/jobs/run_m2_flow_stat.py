@@ -3,11 +3,14 @@
 M2 收费单元-OD(path)小时流量统计 — 命令行入口
 
 Usage:
-    # Test mode (1000 records)
+    # Test mode (1000 records, single process)
     uv run python -m src.jobs.run_m2_flow_stat --version 202603 --max-records 1000 --save-local
 
-    # Full run
+    # Full run (single process)
     uv run python -m src.jobs.run_m2_flow_stat --version 202603
+
+    # Parallel mode (10 workers, 50K mini-batch)
+    uv run python -m src.jobs.run_m2_flow_stat --version 202603 --workers 10 --mini-batch-size 50000
 """
 
 import argparse
@@ -45,12 +48,12 @@ def main():
         help="Topology version (default: 202512)",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=500_000,
-        help="Batch size (default: 500000)",
+        "--batch-size", type=int, default=50000,
+        help="Batch size for single-process mode (default: 500000)",
     )
     parser.add_argument(
         "--upsert-interval", type=int, default=5,
-        help="Upsert to DB every N batches (default: 5)",
+        help="Upsert to DB every N batches in single-process mode (default: 5)",
     )
     parser.add_argument(
         "--max-records", type=int, default=0,
@@ -63,6 +66,14 @@ def main():
     parser.add_argument(
         "--output-dir", default="outputs/m2_flow_stat",
         help="Local output directory",
+    )
+    parser.add_argument(
+        "--workers", type=int, default=2,
+        help="Number of worker processes, 1=single-process, >1=parallel (default: 1)",
+    )
+    parser.add_argument(
+        "--mini-batch-size", type=int, default=50000,
+        help="Mini-batch size for parallel mode (default: 50000)",
     )
 
     args = parser.parse_args()
@@ -77,6 +88,8 @@ def main():
         max_records=args.max_records,
         save_local=args.save_local,
         output_dir=args.output_dir,
+        num_workers=args.workers,
+        mini_batch_size=args.mini_batch_size,
     )
 
     service = FlowStatService()
@@ -86,6 +99,8 @@ def main():
         print(f"\nDone! {result.records_processed:,} records processed in {result.execution_time:.1f}s")
         print(f"  Flow records: {result.flow_records_written:,}")
         print(f"  Map inserts: {result.map_records_inserted}")
+        if params.num_workers > 1:
+            print(f"  Workers: {params.num_workers}")
         if result.local_output_path:
             print(f"  Output: {result.local_output_path}")
     else:

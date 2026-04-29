@@ -18,7 +18,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 from src.modules.m2_od_flow.csv_reader import (
     get_csv_path,
     iter_csv_batches,
+    iter_csv_partition,
     count_csv_lines,
+    build_csv_offset_index,
     DATA_DIR,
     FILE_PATTERN,
 )
@@ -209,3 +211,102 @@ class TestCountCsvLines:
 
         result = count_csv_lines(path)
         assert result == 100
+
+
+# ============================================================================
+# build_csv_offset_index
+# ============================================================================
+
+
+class TestBuildCsvOffsetIndex:
+    """CSV偏移索引构建测试"""
+
+    def _write_csv(self, tmpdir: str, content: str) -> str:
+        """Write CSV content to temp file and return path"""
+        path = os.path.join(tmpdir, "offset_test.csv")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+        return path
+
+    def test_basic_offset_index(self):
+        """基本偏移索引构建"""
+        tmpdir = tempfile.mkdtemp()
+        csv_content = "a,b\n1,2\n3,4\n5,6\n7,8\n9,10\n"
+        path = self._write_csv(tmpdir, csv_content)
+
+        offsets = build_csv_offset_index(path, step=2)
+        # Should have: header_end_offset, offset at line 2, offset at line 4
+        assert len(offsets) >= 2  # at least header_end + one checkpoint
+        assert offsets[0] > 0  # header_end offset
+
+    def test_offset_index_fewer_than_step(self):
+        """记录数少于step时只有header_end"""
+        tmpdir = tempfile.mkdtemp()
+        csv_content = "a,b\n1,2\n"
+        path = self._write_csv(tmpdir, csv_content)
+
+        offsets = build_csv_offset_index(path, step=100)
+        # Only header offset, no checkpoint
+        assert len(offsets) == 1
+
+    def test_offset_index_increasing(self):
+        """偏移量递增"""
+        tmpdir = tempfile.mkdtemp()
+        lines = ["a,b\n"] + [f"{i},{i*2}\n" for i in range(20)]
+        csv_content = "".join(lines)
+        path = self._write_csv(tmpdir, csv_content)
+
+        offsets = build_csv_offset_index(path, step=5)
+        for i in range(1, len(offsets)):
+            assert offsets[i] > offsets[i - 1]
+
+
+# ============================================================================
+# iter_csv_partition
+# ============================================================================
+
+
+class TestIterCsvPartition:
+    """CSV分区读取测试"""
+
+    def _write_csv(self, tmpdir: str, content: str) -> str:
+        """Write CSV content to temp file and return path"""
+        path = os.path.join(tmpdir, "partition_test.csv")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+        return path
+
+    def test_full_partition(self):
+        """从0到EOF读取全部数据"""
+        tmpdir = tempfile.mkdtemp()
+        csv_content = "a,b\n1,2\n3,4\n5,6\n"
+        path = self._write_csv(tmpdir, csv_content)
+
+        batches = list(iter_csv_partition(path, start_offset=0, end_offset=0, batch_size=10))
+        total_records = sum(len(b) for b in batches)
+        assert total_records == 3
+
+    def test_partition_with_selected_columns(self):
+        """分区读取指定列"""
+        tmpdir = tempfile.mkdtemp()
+        csv_content = "x,y,z\n1,2,3\n4,5,6\n"
+        path = self._write_csv(tmpdir, csv_content)
+
+        batches = list(iter_csv_partition(
+            path, start_offset=0, end_offset=0, batch_size=10, columns=["x", "z"]
+        ))
+        record = batches[0][0]
+        assert "x" in record
+        assert "z" in record
+        assert "y" not in record
+
+    def test_mini_batch_splitting(self):
+        """小batch_size分批"""
+        tmpdir = tempfile.mkdtemp()
+        lines = ["x\n"] + [f"{i}\n" for i in range(10)]
+        csv_content = "".join(lines)
+        path = self._write_csv(tmpdir, csv_content)
+
+        batches = list(iter_csv_partition(path, start_offset=0, end_offset=0, batch_size=3))
+        assert len(batches) == 4  # 3+3+3+1
+        assert len(batches[-1]) == 1

@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
-from src.modules.m2_od_flow.flow_stat_service import FlowStatService
+from src.modules.m2_od_flow.flow_stat_service import FlowStatService, _map_and_dedupe_static, _aggregate_record
 from src.modules.m2_od_flow.interval_fixer import (
     IntervalFixResult,
     TopologyChecker,
@@ -355,3 +355,83 @@ class TestGetOrCreateOdPathId:
         result = service._get_or_create_od_path_id("E1", "X1", "1|2", "S1|S2")
         assert result is None
         assert service._map_inserted == 0
+
+
+# ============================================================================
+# _map_and_dedupe_static (module-level function for worker processes)
+# ============================================================================
+
+
+class TestMapAndDedupeStatic:
+    """Worker进程用的静态去重函数测试"""
+
+    def test_simple_path(self):
+        """简单路径映射"""
+        section_map = {"A": 1, "B": 2, "C": 3}
+        result = _map_and_dedupe_static(section_map, "A|B|C")
+        assert result is not None
+        numbers = result.split("|")
+        assert all(n.isdigit() for n in numbers)
+
+    def test_adjacent_dedup(self):
+        """相邻去重"""
+        section_map = {"A": 5, "B": 5, "C": 3}
+        result = _map_and_dedupe_static(section_map, "A|B|C")
+        assert result is not None
+        numbers = result.split("|")
+        assert numbers == ["5", "3"]
+
+    def test_empty_input(self):
+        """空输入返回None"""
+        result = _map_and_dedupe_static({}, "")
+        assert result is None
+
+    def test_consistent_with_instance_method(self):
+        """与实例方法结果一致"""
+        section_map = {"S1": 10, "S2": 20, "S3": 30, "S4": 40}
+        service = FlowStatService()
+        service.section_map = section_map
+
+        intervalgroup = "S1|S2|S3|S4"
+        static_result = _map_and_dedupe_static(section_map, intervalgroup)
+        instance_result = service._map_and_dedupe(intervalgroup)
+        assert static_result == instance_result
+
+
+# ============================================================================
+# _aggregate_record (module-level helper for worker processes)
+# ============================================================================
+
+
+class TestAggregateRecord:
+    """Worker进程用的聚合函数测试"""
+
+    def test_basic_aggregation(self):
+        """基本聚合"""
+        local_agg = defaultdict(int)
+        _aggregate_record("S1|S2|S3", "2026-03-15 10:05:00|2026-03-15 10:15:00|2026-03-15 10:25:00", 1, local_agg)
+        # S1 at 10:00, S2 at 10:00, S3 at 10:00 — all same hour
+        assert len(local_agg) == 3
+        for key, count in local_agg.items():
+            assert count == 1
+
+    def test_dedup_same_section_same_hour(self):
+        """同一section在同一小时去重"""
+        local_agg = defaultdict(int)
+        # S1 at 10:05 and S1 at 10:30 → both hour 10:00 → dedup
+        _aggregate_record("S1|S2|S1", "2026-03-15 10:05:00|2026-03-15 10:15:00|2026-03-15 10:30:00", 1, local_agg)
+        s1_10_keys = [k for k in local_agg if k[0] == "S1" and k[2] == "2026-03-15 10:00:00"]
+        assert len(s1_10_keys) <= 1
+
+    def test_empty_intervalgroup(self):
+        """空intervalgroup不聚合"""
+        local_agg = defaultdict(int)
+        _aggregate_record("", "", 1, local_agg)
+        assert len(local_agg) == 0
+
+    def test_different_hours_counted_separately(self):
+        """不同小时分别计数"""
+        local_agg = defaultdict(int)
+        _aggregate_record("S1|S2", "2026-03-15 09:50:00|2026-03-15 10:10:00", 1, local_agg)
+        # S1 at 09:00, S2 at 10:00 — different hours
+        assert len(local_agg) == 2

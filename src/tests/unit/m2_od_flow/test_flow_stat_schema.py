@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
-from src.modules.m2_od_flow.flow_stat_schema import FlowStatParams, FlowStatResult
+from src.modules.m2_od_flow.flow_stat_schema import FlowStatParams, FlowStatResult, WorkerResult
 
 
 # ============================================================================
@@ -34,6 +34,8 @@ class TestFlowStatParams:
         assert params.save_local is False
         assert params.output_dir == "outputs/m2_flow_stat"
         assert params.max_records == 0
+        assert params.num_workers == 1
+        assert params.mini_batch_size == 50_000
 
     def test_custom_values(self):
         """自定义值"""
@@ -132,3 +134,80 @@ class TestFlowStatResult:
         )
         assert len(result.warnings) == 1
         assert "orphan" in result.warnings[0]
+
+    def test_fix_failures_default_zero(self):
+        """fix_failures默认为0"""
+        result = FlowStatResult(status="success")
+        assert result.fix_failures == 0
+
+    def test_fix_failures_reported(self):
+        """fix_failures正常报告"""
+        result = FlowStatResult(
+            status="success",
+            fix_failures=1234,
+        )
+        assert result.fix_failures == 1234
+
+    def test_parallel_params(self):
+        """并行模式参数"""
+        params = FlowStatParams(
+            num_workers=10,
+            mini_batch_size=50_000,
+        )
+        assert params.num_workers == 10
+        assert params.mini_batch_size == 50_000
+
+    def test_parallel_mode_dispatch(self):
+        """num_workers>1时表示并行模式"""
+        params = FlowStatParams(num_workers=4)
+        assert params.num_workers > 1
+
+
+# ============================================================================
+# WorkerResult
+# ============================================================================
+
+
+class TestWorkerResult:
+    """WorkerResult 结果模型测试"""
+
+    def test_success_result(self):
+        """成功Worker结果"""
+        result = WorkerResult(
+            worker_id=0,
+            records_processed=100000,
+            flow_records_written=50000,
+            map_records_inserted=100,
+            fix_failures=50,
+            batches=10,
+            execution_time=120.5,
+        )
+        assert result.worker_id == 0
+        assert result.records_processed == 100000
+        assert result.flow_records_written == 50000
+        assert result.map_records_inserted == 100
+        assert result.fix_failures == 50
+        assert result.batches == 10
+        assert result.execution_time == 120.5
+        assert result.errors == []
+
+    def test_failed_worker(self):
+        """失败Worker结果"""
+        result = WorkerResult(
+            worker_id=3,
+            errors=["DB connection timeout"],
+        )
+        assert result.worker_id == 3
+        assert len(result.errors) == 1
+        assert result.records_processed == 0
+
+    def test_defaults(self):
+        """默认值"""
+        result = WorkerResult(worker_id=0)
+        assert result.records_processed == 0
+        assert result.flow_records_written == 0
+        assert result.map_records_inserted == 0
+        assert result.fix_failures == 0
+        assert result.batches == 0
+        assert result.errors == []
+        assert result.execution_time is None
