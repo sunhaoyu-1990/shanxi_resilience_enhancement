@@ -133,19 +133,12 @@ class TomNodeRelationImporter:
                 versions.append((version, file))
         return versions
 
-    def extract_version_yyyyMM(self, version_str) -> str:
-        """从version字段提取version_yyyyMM
-
-        例如: "6120251207001" -> "202512"
-        """
-        # 先转换为字符串
-        version_str = str(version_str)
-        if len(version_str) >= 8:
-            return version_str[2:8]  # 跳过前2位省域编码，取接下来6位YYYYMM
-        return ""
-
     def import_version(self, version: str, file_path: Path, overwrite: bool = False):
-        """导入单个版本"""
+        """导入单个版本
+
+        version 参数来自文件名（如 '202603'），直接用作 version_yyyyMM，
+        而非从 CSV 内部 version 字段提取（内部编码可能不对应文件名版本）。
+        """
         print(f"\n处理版本: {version}")
         print(f"  文件: {file_path.name}")
 
@@ -172,10 +165,8 @@ class TomNodeRelationImporter:
             # 重命名列
             df_renamed = df.rename(columns=lambda x: column_mapping.get(x.lower(), x))
 
-            # 提取 version_yyyyMM
-            df_renamed["version_yyyyMM"] = df_renamed["version"].apply(
-                self.extract_version_yyyyMM
-            )
+            # Use filename-based version as version_yyyyMM (not extracted from CSV)
+            df_renamed["version_yyyyMM"] = version
             df_renamed["source_flag"] = "actual"
 
             # 数据字典中的所有列

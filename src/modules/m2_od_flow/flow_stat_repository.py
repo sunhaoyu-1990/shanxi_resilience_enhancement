@@ -163,7 +163,7 @@ class FlowStatRepository(LoggerMixin):
                 params[f"ttc_{i}"] = r.get("total_trip_cnt", 1)
                 params[f"pfr_{i}"] = r.get("path_freq_ratio", 1.0)
                 params[f"sf_{i}"] = r.get("source_flag", "computed")
-                params[f"tv_{i}"] = r.get("topo_version", "202512")
+                params[f"tv_{i}"] = r.get("topo_version", version)
 
             sql += ", ".join(value_rows) + """
             ON CONFLICT (enid, exid, numpath, version_yyyymm)
