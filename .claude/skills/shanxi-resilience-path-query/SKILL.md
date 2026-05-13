@@ -1,5 +1,15 @@
 # 陕交控项目 - 路网路径查询 Skill
 
+## 前置必读
+
+执行本 Skill 前，**必须**先阅读 `docs/数据表说明.md`，重点关注以下表的字段定义和查询示例：
+- `dwd_tom_noderelation` — 路网拓扑结构明细表
+- `dwd_tom_network_edges` — pgRouting 边表
+- `dwd_tom_network_vertices` — pgRouting 节点映射表
+- `dwd_section_path` — 收费单元路径明细表（section_number 核心字段）
+
+编写路径查询 SQL 时，**禁止**凭记忆假设字段名或节点类型枚举值，必须以 `docs/数据表说明.md` 中的数据字典为准。
+
 ## 概述
 
 本 Skill 用于高速路网的路径查询，包括相邻节点查询、两节点间路径查询等功能。

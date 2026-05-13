@@ -2,7 +2,11 @@
 M2 流量统计数据访问层
 
 处理 PostgreSQL 读写：lookup缓存加载、map表upsert、流量表upsert。
-按月分表，表名格式: dws_section_od_path_flow_hour_{YYYYMM}
+分表策略：
+- 月文件模式：表名格式 dws_section_od_path_flow_hour_{YYYYMM}（如 202603）
+- 日文件模式：表名格式 dws_section_od_path_flow_hour_{YYYYMMDD}（如 20260301）
+
+version 参数同时支持月版和日版，方法签名无需区分。
 """
 
 from typing import Optional
@@ -87,7 +91,13 @@ class FlowStatRepository(LoggerMixin):
         """
         result = self.sql_runner.fetch_one(sql, params=record)
         if result:
-            return result["id"]
+            od_path_id = result["id"]
+            self._sync_path_bridge(
+                od_path_id,
+                record.get("fixed_intervalpath", ""),
+                record.get("version_yyyyMM", ""),
+            )
+            return od_path_id
         # Fallback: query by unique key
         fallback_sql = """
         SELECT id FROM dwd_od_section_path_map
@@ -95,7 +105,14 @@ class FlowStatRepository(LoggerMixin):
           AND numpath = :numpath AND version_yyyymm = :version_yyyyMM
         """
         row = self.sql_runner.fetch_one(fallback_sql, params=record)
-        return row["id"] if row else -1
+        if row:
+            self._sync_path_bridge(
+                row["id"],
+                record.get("fixed_intervalpath", ""),
+                record.get("version_yyyyMM", ""),
+            )
+            return row["id"]
+        return -1
 
     def batch_upsert_od_path_map(
         self,
@@ -176,11 +193,61 @@ class FlowStatRepository(LoggerMixin):
             from src.app.db import get_db_session
             with get_db_session() as session:
                 result = session.execute(text(sql), params)
+                rows = result.fetchall()
                 session.commit()
-                for row in result.fetchall():
+                for row in rows:
                     result_map[(row[1], row[2], row[3])] = row[0]
 
+                # Sync bridge table: expand fixed_intervalpath into section_id rows
+                # Build (enid, exid, numpath) -> fixed_intervalpath lookup from params
+                fip_lookup = {}
+                for i, r in enumerate(chunk):
+                    fip_lookup[(r["enid"], r["exid"], r["numpath"])] = r.get("fixed_intervalpath", "")
+
+                bridge_sql = """
+                    INSERT INTO dwd_section_path_bridge (section_id, od_section_path_id, version_yyyyMM)
+                    VALUES (:section_id, :od_path_id, :version)
+                    ON CONFLICT (section_id, od_section_path_id, version_yyyyMM) DO NOTHING
+                """
+                for row in rows:
+                    od_path_id = row[0]
+                    fip = fip_lookup.get((row[1], row[2], row[3]), "")
+                    if not fip:
+                        continue
+                    section_ids = [s.strip() for s in fip.split("|") if s.strip()]
+                    for sid in section_ids:
+                        session.execute(text(bridge_sql), {
+                            "section_id": sid,
+                            "od_path_id": od_path_id,
+                            "version": version,
+                        })
+                session.commit()
+
         return result_map
+
+    def _sync_path_bridge(
+        self,
+        od_path_id: int,
+        fixed_intervalpath: str,
+        version: str,
+    ) -> None:
+        """同步写入 dwd_section_path_bridge，将 fixed_intervalpath 展开为 section_id 行"""
+        if not fixed_intervalpath:
+            return
+        section_ids = [s.strip() for s in fixed_intervalpath.split("|") if s.strip()]
+        if not section_ids:
+            return
+        sql = """
+            INSERT INTO dwd_section_path_bridge (section_id, od_section_path_id, version_yyyyMM)
+            VALUES (:section_id, :od_path_id, :version)
+            ON CONFLICT (section_id, od_section_path_id, version_yyyyMM) DO NOTHING
+        """
+        for sid in section_ids:
+            self.sql_runner.execute_sql(sql, params={
+                "section_id": sid,
+                "od_path_id": od_path_id,
+                "version": version,
+            }, commit=False)
 
     # ========================================================================
     # Flow table batch upsert
@@ -199,8 +266,8 @@ class FlowStatRepository(LoggerMixin):
         table_name = f"dws_section_od_path_flow_hour_{version}"
 
         # PostgreSQL max parameters per query = 65535
-        # Each record needs 5 params (section_id, od_section_path_id, stat_hour, flow_cnt, source_flag)
-        # Safe upper bound: 65535 // 5 = 13107, use 10000 for margin
+        # Each record needs 6 params (section_id, od_section_path_id, stat_hour, vehicle_type, flow_cnt, source_flag)
+        # Safe upper bound: 65535 // 6 = 10922, use 10000 for margin
         MAX_RECORDS_PER_CHUNK = 10000
 
         total_written = 0
@@ -209,7 +276,7 @@ class FlowStatRepository(LoggerMixin):
 
             sql = f"""
             INSERT INTO {table_name} (
-                section_id, od_section_path_id, stat_hour,
+                section_id, od_section_path_id, stat_hour, vehicle_type,
                 flow_cnt, source_flag
             ) VALUES
             """
@@ -218,16 +285,17 @@ class FlowStatRepository(LoggerMixin):
             for i, r in enumerate(chunk):
                 value_rows.append(
                     f"(:section_id_{i}, :od_section_path_id_{i}, :stat_hour_{i}, "
-                    f":flow_cnt_{i}, :source_flag_{i})"
+                    f":vehicle_type_{i}, :flow_cnt_{i}, :source_flag_{i})"
                 )
                 params[f"section_id_{i}"] = r["section_id"]
                 params[f"od_section_path_id_{i}"] = r["od_section_path_id"]
                 params[f"stat_hour_{i}"] = r["stat_hour"]
+                params[f"vehicle_type_{i}"] = r["vehicle_type"]
                 params[f"flow_cnt_{i}"] = r["flow_cnt"]
                 params[f"source_flag_{i}"] = r.get("source_flag", "computed")
 
             sql += ", ".join(value_rows) + f"""
-            ON CONFLICT (section_id, od_section_path_id, stat_hour)
+            ON CONFLICT (section_id, od_section_path_id, stat_hour, vehicle_type)
             DO UPDATE SET
                 flow_cnt  = {table_name}.flow_cnt
                             + EXCLUDED.flow_cnt,
@@ -265,6 +333,7 @@ class FlowStatRepository(LoggerMixin):
             COUNT(*) AS total_records,
             COUNT(DISTINCT section_id) AS unique_sections,
             COUNT(DISTINCT od_section_path_id) AS unique_od_paths,
+            COUNT(DISTINCT vehicle_type) AS unique_vehicle_types,
             SUM(flow_cnt) AS total_flow,
             MIN(stat_hour) AS min_hour,
             MAX(stat_hour) AS max_hour
@@ -294,3 +363,26 @@ class FlowStatRepository(LoggerMixin):
             errors.append(f"orphan od_section_path_id: {result['cnt']} records")
 
         return {"valid": len(errors) == 0, "errors": errors}
+
+    def create_bridge_table(self) -> None:
+        """Create dwd_section_path_bridge if not exists"""
+        logger.info("Creating dwd_section_path_bridge...")
+        self.sql_runner.run_sql_file(
+            "ddl/dwd/create_dwd_section_path_bridge.sql",
+            commit=True,
+        )
+        logger.info("Table dwd_section_path_bridge created")
+
+    def populate_bridge_table(self) -> int:
+        """Populate dwd_section_path_bridge from dwd_od_section_path_map"""
+        logger.info("Populating dwd_section_path_bridge...")
+        self.sql_runner.run_sql_file(
+            "dml/m2/populate_dwd_section_path_bridge.sql",
+            commit=True,
+        )
+        result = self.sql_runner.fetch_one(
+            "SELECT COUNT(*) AS cnt FROM dwd_section_path_bridge"
+        )
+        count = result["cnt"] if result else 0
+        logger.info(f"dwd_section_path_bridge populated: {count} rows")
+        return count

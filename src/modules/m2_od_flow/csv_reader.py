@@ -7,9 +7,15 @@ CSV 高效流式读取模块
 支持两种读取模式：
 1. iter_csv_batches: 全量顺序读取（原有模式）
 2. iter_csv_partition: 按字节偏移分区读取（多进程并行模式）
+
+支持两种数据源：
+1. 单月文件：gstx_exit_with_min_fee{YYYYMM}.csv
+2. 日文件目录：{data_dir}/{YYYYMM}/data_{YYYYMMDD}.csv
 """
 
 import csv
+import os
+from calendar import monthrange
 from typing import Generator, Optional
 
 from src.app.logger import get_logger
@@ -34,9 +40,76 @@ def get_csv_path(version: str, data_dir: str = DATA_DIR) -> str:
     Returns:
         Full file path
     """
-    import os
     filename = FILE_PATTERN.format(version=version)
     return os.path.join(data_dir, filename)
+
+
+def _detect_has_header(filepath: str, encoding: str = "utf-8") -> bool:
+    """
+    Heuristic: check if the first line of a CSV file is a header row.
+
+    A line is considered a header if it contains common column names
+    like 'enid', 'exid', or 'intervalgroup'.
+
+    Args:
+        filepath: CSV file path
+        encoding: file encoding
+
+    Returns:
+        True if first line looks like a header, False otherwise
+    """
+    try:
+        with open(filepath, "r", encoding=encoding) as f:
+            first_line = f.readline().strip().lower()
+        if not first_line:
+            return True  # empty file, safe default
+        return any(
+            keyword in first_line
+            for keyword in ("enid", "exid", "intervalgroup")
+        )
+    except Exception:
+        return True
+
+
+def discover_daily_files(version: str, data_dir: str = DATA_DIR) -> list[str]:
+    """
+    Discover daily CSV files for a given version/month.
+
+    Scans {data_dir}/{version}/ for files matching data_{YYYYMMDD}.csv,
+    sorted chronologically. Missing days are logged as warnings but
+    do not raise errors.
+
+    Args:
+        version: version string like "202603"
+        data_dir: base data directory
+
+    Returns:
+        Sorted list of full file paths to daily CSV files
+
+    Raises:
+        FileNotFoundError: if the month directory does not exist
+    """
+    month_dir = os.path.join(data_dir, version)
+    if not os.path.isdir(month_dir):
+        raise FileNotFoundError(
+            f"Daily data directory not found: {month_dir}"
+        )
+
+    year = int(version[:4])
+    month = int(version[4:6])
+    _, last_day = monthrange(year, month)
+
+    files = []
+    for day in range(1, last_day + 1):
+        day_str = f"{version}{day:02d}"
+        filepath = os.path.join(month_dir, f"data_{day_str}.csv")
+        if os.path.exists(filepath):
+            files.append(filepath)
+        else:
+            logger.warning(f"Missing daily file: {filepath}")
+
+    logger.info(f"Discovered {len(files)}/{last_day} daily files for {version}")
+    return files
 
 
 def iter_csv_batches(
@@ -44,6 +117,7 @@ def iter_csv_batches(
     batch_size: int = 500_000,
     columns: Optional[list[str]] = None,
     encoding: str = "utf-8",
+    has_header: bool = True,
 ) -> Generator[list[dict], None, None]:
     """
     Stream-read CSV file in batches using csv.reader with index-based column extraction.
@@ -54,15 +128,20 @@ def iter_csv_batches(
         batch_size: records per batch
         columns: column names to extract (None = all columns)
         encoding: file encoding
+        has_header: True if file has a header row (default), False if headerless
 
     Yields:
         Batches of records [{col: val, ...}, ...]
     """
-    logger.info(f"Opening CSV: {file_path}")
+    logger.info(f"Opening CSV: {file_path} (has_header={has_header})")
 
     with open(file_path, "r", encoding=encoding) as f:
-        # Read header to get column indices
-        header = next(csv.reader(f))
+        if has_header:
+            header = next(csv.reader(f))
+        else:
+            if not columns:
+                raise ValueError("columns must be specified when has_header=False")
+            header = columns
 
         if columns:
             col_indices = {}
@@ -98,7 +177,11 @@ def iter_csv_batches(
         logger.info(f"CSV read complete: {line_count:,} records")
 
 
-def count_csv_lines(file_path: str, encoding: str = "utf-8") -> int:
+def count_csv_lines(
+    file_path: str,
+    encoding: str = "utf-8",
+    has_header: bool = True,
+) -> int:
     """
     Count total lines in CSV (excluding header) for progress display.
     Fast: reads raw bytes, counts newlines.
@@ -106,14 +189,15 @@ def count_csv_lines(file_path: str, encoding: str = "utf-8") -> int:
     Args:
         file_path: CSV file path
         encoding: file encoding
+        has_header: True if file has a header row to skip
 
     Returns:
         Total record count
     """
     logger.info(f"Counting lines in {file_path}...")
     with open(file_path, "r", encoding=encoding) as f:
-        # Skip header
-        next(f)
+        if has_header:
+            next(f)
         count = 0
         for _ in f:
             count += 1
@@ -175,6 +259,7 @@ def iter_csv_partition(
     batch_size: int = 50_000,
     columns: Optional[list[str]] = None,
     encoding: str = "utf-8",
+    has_header: bool = True,
 ) -> Generator[list[dict], None, None]:
     """
     Read a partition of a CSV file between two byte offsets, yielding mini-batches.
@@ -190,6 +275,7 @@ def iter_csv_partition(
         batch_size: records per mini-batch
         columns: column names to extract (None = all columns)
         encoding: file encoding
+        has_header: True if file has a header row (default), False if headerless
 
     Yields:
         Mini-batches of records [{col: val, ...}, ...]
@@ -201,7 +287,12 @@ def iter_csv_partition(
         f = io.TextIOWrapper(bf, encoding=encoding)
 
         # Read header to get column indices
-        header = next(csv.reader(f))
+        if has_header:
+            header = next(csv.reader(f))
+        else:
+            if not columns:
+                raise ValueError("columns must be specified when has_header=False")
+            header = columns
 
         if columns:
             col_indices = {}
@@ -218,7 +309,8 @@ def iter_csv_partition(
             bf.seek(start_offset)
             # Discard old TextIOWrapper and create new one to avoid buffer desync
             f.detach()  # Prevent wrapper from closing bf
-            f = io.TextIOWrapper(bf, encoding=encoding)
+            # Use errors='replace' to handle invalid UTF-8 bytes at partition boundary
+            f = io.TextIOWrapper(bf, encoding=encoding, errors='replace')
             # Skip potentially partial line from previous partition
             f.readline()
 
@@ -244,3 +336,40 @@ def iter_csv_partition(
 
         if batch:
             yield batch
+
+
+def iter_daily_csv_batches(
+    version: str,
+    data_dir: str = DATA_DIR,
+    batch_size: int = 500_000,
+    columns: Optional[list[str]] = None,
+    encoding: str = "utf-8",
+) -> Generator[tuple[str, list[dict]], None, None]:
+    """
+    Iterate over all daily CSV files for a month, yielding (day_str, batch) tuples.
+
+    Args:
+        version: version string like "202603"
+        data_dir: base data directory
+        batch_size: records per batch
+        columns: column names to extract
+        encoding: file encoding
+
+    Yields:
+        (day_str, batch) where day_str is "20260301" etc.
+    """
+    daily_files = discover_daily_files(version, data_dir)
+
+    for filepath in daily_files:
+        day_str = os.path.basename(filepath).replace("data_", "").replace(".csv", "")
+        has_header = _detect_has_header(filepath, encoding)
+        logger.info(f"Processing daily file: {filepath} (has_header={has_header})")
+
+        for batch in iter_csv_batches(
+            file_path=filepath,
+            batch_size=batch_size,
+            columns=columns,
+            encoding=encoding,
+            has_header=has_header,
+        ):
+            yield day_str, batch

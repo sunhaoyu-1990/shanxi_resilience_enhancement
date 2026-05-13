@@ -27,7 +27,7 @@ class M6Repository(LoggerMixin):
         sql = """
         SELECT COUNT(*) AS cnt
         FROM dwd_od_section_path_map
-        WHERE version_yyyyMM = '{{ version }}'
+        WHERE version_yyyymm = '{{ version }}'
         """
         rendered = self.sql_runner.render_sql(sql, {"version": version})
         result = self.sql_runner.fetch_one(rendered)
@@ -37,7 +37,7 @@ class M6Repository(LoggerMixin):
         sql = """
         SELECT COUNT(*) AS cnt
         FROM dwd_od_section_path_numpath_freq
-        WHERE version_yyyyMM = '{{ version }}'
+        WHERE version_yyyymm = '{{ version }}'
         """
         rendered = self.sql_runner.render_sql(sql, {"version": version})
         result = self.sql_runner.fetch_one(rendered)
@@ -53,7 +53,7 @@ class M6Repository(LoggerMixin):
             MIN(path_freq_ratio)                 AS min_freq_ratio,
             MAX(path_freq_ratio)                 AS max_freq_ratio
         FROM dwd_od_section_path_map
-        WHERE version_yyyyMM = '{{ version }}'
+        WHERE version_yyyymm = '{{ version }}'
         """
         rendered = self.sql_runner.render_sql(sql, {"version": version})
         return self.sql_runner.fetch_one(rendered) or {}
@@ -67,7 +67,7 @@ class M6Repository(LoggerMixin):
         sql = """
         SELECT id, section_number
         FROM dwd_section_path
-        WHERE version_yyyyMM = '{{ version }}'
+        WHERE version_yyyymm = '{{ version }}'
           AND section_number IS NOT NULL
         """
         rendered = self.sql_runner.render_sql(sql, {"version": version})
@@ -95,7 +95,7 @@ class M6Repository(LoggerMixin):
 
         Args:
             records: 记录列表，每条包含:
-                enid, exid, numpath, fixed_intervalgroup, version_yyyyMM,
+                enid, exid, numpath, fixed_intervalgroup, version_yyyymm,
                 ig_count, source_flag
             topo_version: 拓扑版本
 
@@ -108,7 +108,7 @@ class M6Repository(LoggerMixin):
         sql = """
         INSERT INTO dwd_od_section_path_numpath_freq (
             enid, exid, numpath, fixed_intervalgroup,
-            version_yyyyMM, topo_version,
+            version_yyyymm, topo_version,
             ig_count, ig_rank, source_flag
         ) VALUES
         """
@@ -125,13 +125,13 @@ class M6Repository(LoggerMixin):
             params[f"exid_{i}"] = r["exid"]
             params[f"numpath_{i}"] = r["numpath"]
             params[f"fixed_intervalgroup_{i}"] = r.get("fixed_intervalgroup", "")
-            params[f"version_{i}"] = r["version_yyyyMM"]
+            params[f"version_{i}"] = r["version_yyyymm"]
             params[f"topo_version_{i}"] = topo_version
             params[f"ig_count_{i}"] = r["ig_count"]
             params[f"source_flag_{i}"] = r.get("source_flag", "hive_computed")
 
         sql += ", ".join(value_rows) + """
-        ON CONFLICT (enid, exid, numpath, fixed_intervalgroup, version_yyyyMM, topo_version)
+        ON CONFLICT (enid, exid, numpath, fixed_intervalgroup, version_yyyymm, topo_version)
         DO UPDATE SET
             ig_count  = dwd_od_section_path_numpath_freq.ig_count
                         + EXCLUDED.ig_count,
@@ -157,16 +157,16 @@ class M6Repository(LoggerMixin):
         sql = """
         WITH total_cnt AS (
             SELECT
-                enid, exid, numpath, version_yyyyMM, topo_version,
+                enid, exid, numpath, version_yyyymm, topo_version,
                 SUM(ig_count) AS total_trip_cnt
             FROM dwd_od_section_path_numpath_freq
-            WHERE version_yyyyMM = '{{ version }}'
-            GROUP BY enid, exid, numpath, version_yyyyMM, topo_version
+            WHERE version_yyyymm = '{{ version }}'
+            GROUP BY enid, exid, numpath, version_yyyymm, topo_version
         ),
         best_ig AS (
             SELECT
                 f.enid, f.exid, f.numpath,
-                f.version_yyyyMM, f.topo_version,
+                f.version_yyyymm, f.topo_version,
                 f.fixed_intervalgroup,
                 f.ig_count,
                 t.total_trip_cnt
@@ -175,19 +175,19 @@ class M6Repository(LoggerMixin):
                 ON  f.enid = t.enid
                 AND f.exid = t.exid
                 AND f.numpath = t.numpath
-                AND f.version_yyyyMM = t.version_yyyyMM
+                AND f.version_yyyymm = t.version_yyyymm
                 AND f.topo_version = t.topo_version
-            WHERE f.version_yyyyMM = '{{ version }}'
+            WHERE f.version_yyyymm = '{{ version }}'
               AND f.ig_rank = 1
         )
         INSERT INTO dwd_od_section_path_map (
-            enid, exid, numpath, version_yyyyMM,
+            enid, exid, numpath, version_yyyymm,
             fixed_intervalpath, intervalpath_cnt,
             total_trip_cnt, path_freq_ratio,
             topo_version, source_flag
         )
         SELECT
-            enid, exid, numpath, version_yyyyMM,
+            enid, exid, numpath, version_yyyymm,
             fixed_intervalgroup,
             ig_count,
             total_trip_cnt,
@@ -197,7 +197,7 @@ class M6Repository(LoggerMixin):
             topo_version,
             'hive_computed'
         FROM best_ig
-        ON CONFLICT (enid, exid, numpath, version_yyyyMM)
+        ON CONFLICT (enid, exid, numpath, version_yyyymm)
         DO UPDATE SET
             fixed_intervalpath = EXCLUDED.fixed_intervalpath,
             intervalpath_cnt   = EXCLUDED.intervalpath_cnt,
@@ -223,7 +223,7 @@ class M6Repository(LoggerMixin):
         不指定 version 时为所有版本计算
         """
         if version:
-            where = f"WHERE version_yyyyMM = '{version}'"
+            where = f"WHERE version_yyyymm = '{version}'"
             logger.info(f"计算 ig_rank (version={version})...")
         else:
             where = ""
@@ -236,7 +236,7 @@ class M6Repository(LoggerMixin):
         FROM   (
             SELECT id,
                    RANK() OVER (
-                       PARTITION BY enid, exid, numpath, version_yyyyMM, topo_version
+                       PARTITION BY enid, exid, numpath, version_yyyymm, topo_version
                        ORDER BY ig_count DESC
                    ) AS r_rank
             FROM dwd_od_section_path_numpath_freq
@@ -276,7 +276,7 @@ class M6Repository(LoggerMixin):
         初始化 checkpoint 表
 
         Args:
-            tables: [(table_name, version_yyyyMM, topo_version), ...]
+            tables: [(table_name, version_yyyymm, topo_version), ...]
 
         Returns:
             初始化记录数
@@ -286,7 +286,7 @@ class M6Repository(LoggerMixin):
 
         sql = """
         INSERT INTO m6_checkpoint (
-            table_name, version_yyyyMM, batch_offset,
+            table_name, version_yyyymm, batch_offset,
             records_processed, status, topo_version
         ) VALUES
         """
@@ -301,7 +301,7 @@ class M6Repository(LoggerMixin):
             params[f"topo_{i}"] = topo
 
         sql += ", ".join(value_rows) + """
-        ON CONFLICT (table_name, version_yyyyMM)
+        ON CONFLICT (table_name, version_yyyymm)
         DO UPDATE SET
             updated_at = CURRENT_TIMESTAMP
             -- 不覆盖已有进度（断点续跑时保留 offset）
@@ -314,13 +314,13 @@ class M6Repository(LoggerMixin):
         """获取所有 status='running' 的 checkpoint（按 version 升序）"""
         sql = """
         SELECT
-            table_name, version_yyyyMM,
+            table_name, version_yyyymm,
             batch_offset, records_processed,
             last_batch_time, status, topo_version,
             updated_at
         FROM m6_checkpoint
         WHERE status = 'running'
-        ORDER BY version_yyyyMM ASC
+        ORDER BY version_yyyymm ASC
         """
         return self.sql_runner.fetch_all(sql)
 
@@ -328,12 +328,12 @@ class M6Repository(LoggerMixin):
         """获取指定版本的 checkpoint"""
         sql = """
         SELECT
-            table_name, version_yyyyMM,
+            table_name, version_yyyymm,
             batch_offset, records_processed,
             last_batch_time, status, topo_version
         FROM m6_checkpoint
         WHERE table_name = :tname
-          AND version_yyyyMM = :ver
+          AND version_yyyymm = :ver
         """
         return self.sql_runner.fetch_one(
             sql,
@@ -363,7 +363,7 @@ class M6Repository(LoggerMixin):
             last_batch_time  = to_char(NOW(), 'HH24:MI:SS'),
             updated_at       = CURRENT_TIMESTAMP
         WHERE table_name = :tname
-          AND version_yyyyMM = :ver
+          AND version_yyyymm = :ver
         """
         self.sql_runner.execute_sql(
             sql,
@@ -383,7 +383,7 @@ class M6Repository(LoggerMixin):
             status     = 'completed',
             updated_at = CURRENT_TIMESTAMP
         WHERE table_name = :tname
-          AND version_yyyyMM = :ver
+          AND version_yyyymm = :ver
         """
         self.sql_runner.execute_sql(
             sql,
@@ -401,7 +401,7 @@ class M6Repository(LoggerMixin):
             status           = 'running',
             updated_at       = CURRENT_TIMESTAMP
         WHERE table_name = :tname
-          AND version_yyyyMM = :ver
+          AND version_yyyymm = :ver
         """
         self.sql_runner.execute_sql(
             sql,
@@ -413,12 +413,12 @@ class M6Repository(LoggerMixin):
         """获取所有 checkpoint（按 version 升序）"""
         sql = """
         SELECT
-            table_name, version_yyyyMM,
+            table_name, version_yyyymm,
             batch_offset, records_processed,
             last_batch_time, status, topo_version,
             created_at, updated_at
         FROM m6_checkpoint
-        ORDER BY version_yyyyMM ASC
+        ORDER BY version_yyyymm ASC
         """
         return self.sql_runner.fetch_all(sql)
 
@@ -438,7 +438,7 @@ class M6Repository(LoggerMixin):
         for col in ["enid", "exid", "numpath"]:
             sql = f"""
             SELECT COUNT(*) AS cnt FROM dwd_od_section_path_map
-            WHERE version_yyyyMM = '{{ version }}'
+            WHERE version_yyyymm = '{{ version }}'
               AND ({col} IS NULL OR {col} = '')
             """
             rendered = self.sql_runner.render_sql(sql, {"version": version})
@@ -449,7 +449,7 @@ class M6Repository(LoggerMixin):
         for op, label in [("< 0", "小于0"), ("> 1", "大于1")]:
             sql = f"""
             SELECT COUNT(*) AS cnt FROM dwd_od_section_path_map
-            WHERE version_yyyyMM = '{{ version }}'
+            WHERE version_yyyymm = '{{ version }}'
               AND path_freq_ratio {op}
             """
             rendered = self.sql_runner.render_sql(sql, {"version": version})
@@ -472,7 +472,7 @@ class M6Repository(LoggerMixin):
             END AS consistency,
             COUNT(*) AS cnt
         FROM dwd_od_section_path_map
-        WHERE version_yyyyMM = '{{ version }}'
+        WHERE version_yyyymm = '{{ version }}'
         GROUP BY 1
         ORDER BY 1
         """
@@ -520,7 +520,7 @@ class M6Repository(LoggerMixin):
 
         Args:
             freq_records: 已按 fixed_ig 分组累加的记录
-                [{enid, exid, numpath, fixed_intervalgroup, version_yyyyMM, ig_count}, ...]
+                [{enid, exid, numpath, fixed_intervalgroup, version_yyyymm, ig_count}, ...]
             topo_version: 拓扑版本
 
         Returns:

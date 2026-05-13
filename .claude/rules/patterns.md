@@ -214,3 +214,63 @@ pipeline:
     - m4  # 分流路径优化 - 依赖 m2, m3
     - m5  # 通行费影响测算 - 依赖 m3, m4
 ```
+
+## 数据库操作前置规范
+
+### 强制阅读 docs/数据表说明.md
+
+**任何涉及数据库表操作的任务，执行前必须先阅读 `docs/数据表说明.md`。**
+
+该文件是本项目所有数据库表的**唯一权威来源**，包含：
+- 表清单总览（分层、记录数、简介）
+- 各表数据字典（字段名、类型、可空、描述）
+- 唯一约束与主键定义
+- 查询示例与索引设计
+- 版本管理规则（version_yyyomm）
+- source_flag 枚举值
+
+### 禁止凭记忆假设表结构
+
+```python
+# GOOD: 执行前读取 docs/数据表说明.md，确认字段名、类型、约束
+# 目标表 dwd_od_section_path_map，UNIQUE (enid, exid, numpath, version_yyyomm)
+# 字段 version_yyyomm — 注意全小写，非 version_yyyyMM
+
+# BAD: 凭记忆写字段名，导致 SQL 报错或数据写入错误列
+# "version_yyyyMM"  # 大小写错误！数据库列名为 version_yyyomm
+```
+
+### 新建/修改表后必须同步更新
+
+```python
+# GOOD: 建表完成后同步更新 docs/数据表说明.md
+# 1. 在表清单总览中添加新表条目
+# 2. 在各表详细说明中添加完整的数据字典
+# 3. 添加查询示例
+
+# BAD: 建完表不管文档，导致 docs/数据表说明.md 与实际数据库不一致
+```
+
+### 常见字段命名陷阱
+
+| 易错点 | 正确值 | 错误值 | 说明 |
+|--------|--------|--------|------|
+| 版本字段 | `version_yyyomm` | `version_yyyyMM` | 数据库列名全小写 |
+| 入口节点 | `enroadnodeid` | `enRoadNodeId` | 数据库列名全小写 |
+| 出口节点 | `exroadnodeid` | `exRoadNodeId` | 数据库列名全小写 |
+| 里程字段 | `miles` (integer) | `mileage` / `distance` | 统一用 miles（米） |
+| 来源标识 | `source_flag` | `sourceFlag` / `source` | 统一用 source_flag |
+
+### ON CONFLICT 必须基于 UNIQUE 约束
+
+```sql
+-- GOOD: 先确认目标表有 UNIQUE 约束（从 docs/数据表说明.md 查得）
+-- dws_section_od_path_flow_hour: UNIQUE (section_id, od_section_path_id, stat_hour)
+INSERT INTO dws_section_od_path_flow_hour_202603 (...)
+VALUES (...)
+ON CONFLICT (section_id, od_section_path_id, stat_hour)
+DO UPDATE SET flow_cnt = dws_section_od_path_flow_hour_202603.flow_cnt + EXCLUDED.flow_cnt
+
+-- BAD: 凭猜测写 ON CONFLICT，约束不匹配导致 SQL 报错
+ON CONFLICT (section_id, stat_hour)  -- 缺少 od_section_path_id，不匹配 UNIQUE 约束
+```

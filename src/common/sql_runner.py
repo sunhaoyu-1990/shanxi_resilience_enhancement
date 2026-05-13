@@ -151,7 +151,7 @@ class SqlRunner:
       rows = [dict(row._mapping) for row in result.fetchall()]
 
       duration_ms = (time.time() - start_time) * 1000
-      logger.info(f"查询完成，获取 {len(rows)} 行，耗时 {duration_ms:.2f}ms")
+      logger.debug(f"查询完成，获取 {len(rows)} 行，耗时 {duration_ms:.2f}ms")
 
       return rows
 
@@ -194,7 +194,7 @@ class SqlRunner:
 
       duration_ms = (time.time() - start_time) * 1000
       if row:
-        logger.info(f"查询完成，获取 1 行，耗时 {duration_ms:.2f}ms")
+        logger.debug(f"查询完成，获取 1 行，耗时 {duration_ms:.2f}ms")
         return dict(row._mapping)
       else:
         logger.info(f"查询完成，无结果，耗时 {duration_ms:.2f}ms")

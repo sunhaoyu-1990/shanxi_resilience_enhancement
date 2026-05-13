@@ -91,3 +91,11 @@ validation:
     scheme_id: true
     section_id: true
     od_id: true
+
+# M7 数据挖掘模块
+m7_data_mining:
+  data_dir: "/home/shy/gaosu_data"
+  base_table_path: "research/analysis/基础表.csv"
+  section_version: "202401"
+  default_top_n: 0
+  csv_batch_size: 100000

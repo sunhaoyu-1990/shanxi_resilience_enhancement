@@ -5,7 +5,8 @@ intervalgroup 修复失败记录器
 方便后续针对性调查和失败数据再次处理。
 
 CSV 字段: enid, exid, intervalgroup, intervaltimegroup,
-          envehicleid, exvehicleid, entime, extime, failure_reason
+          envehicleid, exvehicleid, entime, extime,
+          feevehicletype, envehicletype, failure_reason
 """
 
 import csv
@@ -25,6 +26,8 @@ FAILURE_CSV_HEADER = [
     "exvehicleid",
     "entime",
     "extime",
+    "feevehicletype",
+    "envehicletype",
     "failure_reason",
 ]
 
@@ -70,6 +73,8 @@ class FixFailureLogger:
             record.get("exvehicleid", ""),
             record.get("entime", ""),
             record.get("extime", ""),
+            record.get("feevehicletype", ""),
+            record.get("envehicletype", ""),
             reason,
         ]
         self._writer.writerow(row)

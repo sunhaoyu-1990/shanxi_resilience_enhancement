@@ -3,6 +3,7 @@
 提供各类文件加载功能，支持路径解析和格式转换
 """
 
+import csv
 import json
 from pathlib import Path
 from typing import Any, Optional
@@ -13,6 +14,18 @@ from src.app.exceptions import ConfigError
 from src.app.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def _cell_to_str(value: Any) -> str:
+  """将 xlsx 单元格值统一转为字符串，与 csv.DictReader 行为一致
+
+  None→""、bool→"True"/"False"、其余 str()
+  """
+  if value is None:
+    return ""
+  if isinstance(value, bool):
+    return str(value)
+  return str(value)
 
 
 class FileLoader:
@@ -190,6 +203,96 @@ class FileLoader:
 
     logger.debug(f"已保存文本: {path}")
 
+  def load_tabular(
+    self,
+    file_path: str,
+    columns: list[str] | None = None,
+  ) -> list[dict[str, str]]:
+    """加载表格文件（CSV 或 xlsx），按扩展名自动识别
+
+    返回 list[dict[str, str]]，所有值统一为字符串，与 csv.DictReader 行为一致。
+    xlsx 中 None→""、bool→"True"/"False"、其余 str()。
+
+    Args:
+      file_path: 文件路径（支持 .csv / .xlsx / .xls）
+      columns: 可选，只提取指定列（xlsx 时按 header 索引映射，减少内存）
+
+    Raises:
+      ConfigError: 文件不存在或格式不支持时
+    """
+    path = self.resolve_path(file_path)
+    if not path.exists():
+      raise ConfigError(f"表格文件未找到: {path}", config_key=str(path))
+
+    ext = path.suffix.lower()
+    if ext in (".xlsx", ".xls"):
+      return self._load_xlsx(path, columns)
+    elif ext in (".csv", ".tsv"):
+      return self._load_csv(path, columns)
+    else:
+      raise ConfigError(f"不支持的表格格式: {ext}", config_key=str(path))
+
+  def _load_csv(
+    self,
+    path: Path,
+    columns: list[str] | None = None,
+  ) -> list[dict[str, str]]:
+    """加载 CSV 文件"""
+    records: list[dict[str, str]] = []
+    with open(path, "r", encoding="utf-8") as f:
+      reader = csv.DictReader(f)
+      for row in reader:
+        if columns:
+          records.append({k: row.get(k, "") for k in columns})
+        else:
+          records.append(dict(row))
+    logger.debug(f"已加载 CSV: {path} ({len(records)} 行)")
+    return records
+
+  def _load_xlsx(
+    self,
+    path: Path,
+    columns: list[str] | None = None,
+  ) -> list[dict[str, str]]:
+    """加载 xlsx 文件（read_only 模式，内存友好）"""
+    import openpyxl
+
+    records: list[dict[str, str]] = []
+    wb = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
+    try:
+      ws = wb.active
+      # 读取表头
+      header: list[str] = []
+      for row in ws.iter_rows(min_row=1, max_row=1, values_only=True):
+        header = [_cell_to_str(v) for v in row]
+
+      # 确定需要提取的列索引
+      colIndices: list[int] | None = None
+      if columns:
+        colIndices = []
+        for colName in columns:
+          if colName in header:
+            colIndices.append(header.index(colName))
+          else:
+            logger.warning(f"xlsx 中未找到列: {colName}")
+
+      # 逐行读取数据
+      for row in ws.iter_rows(min_row=2, values_only=True):
+        if colIndices is not None:
+          record: dict[str, str] = {}
+          for idx in colIndices:
+            record[header[idx]] = _cell_to_str(row[idx]) if idx < len(row) else ""
+          records.append(record)
+        else:
+          records.append(
+            {header[i]: _cell_to_str(v) for i, v in enumerate(row) if i < len(header)}
+          )
+    finally:
+      wb.close()
+
+    logger.debug(f"已加载 xlsx: {path} ({len(records)} 行)")
+    return records
+
   def file_exists(self, file_path: str) -> bool:
     """检查文件是否存在"""
     return self.resolve_path(file_path).exists()
@@ -252,3 +355,11 @@ def load_sql(file_path: str) -> str:
 def load_text(file_path: str) -> str:
   """使用默认加载器加载文本文件"""
   return get_file_loader().load_text(file_path)
+
+
+def load_tabular(
+  file_path: str,
+  columns: list[str] | None = None,
+) -> list[dict[str, str]]:
+  """使用默认加载器加载表格文件（CSV 或 xlsx）"""
+  return get_file_loader().load_tabular(file_path, columns)

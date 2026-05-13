@@ -134,3 +134,55 @@
 2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 1
 2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpwr98dah0\count_test.csv...
 2026-04-27 10:35:27 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 100
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpj01njdqx\test.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['a', 'b', 'c']
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmp4o119iud\test.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['enid', 'exid', 'intervalgroup']
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpqz494b6g\test.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['x', 'y']
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 10 records
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpbqt02w4d\test.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (3): ['a', 'b', 'c']
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 0 records
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmppv2qg00z\test.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | WARNING  | iter_csv_batches:69 | Column 'nonexistent' not found in CSV header
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | WARNING  | iter_csv_batches:72 | Missing columns: {'nonexistent'}
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (1): ['a']
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 1 records
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmp3g7cngov\test.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['enid', 'exid']
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 1 records
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpxjdmu6dw\test.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (1): ['x']
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 3 records
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:57 | Opening CSV: C:\Users\sunha\AppData\Local\Temp\tmpyufqu5nh\test.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:76 | CSV columns (2): ['name', 'value']
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | iter_csv_batches:94 | CSV read complete: 2 records
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmp1_fgaor4\count_test.csv...
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 3
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpuii4k0h0\count_test.csv...
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 0
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmpr7ewqe4q\count_test.csv...
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 1
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:109 | Counting lines in C:\Users\sunha\AppData\Local\Temp\tmptqw9ufo5\count_test.csv...
+2026-04-27 14:13:41 | src.modules.m2_od_flow.csv_reader | INFO     | count_csv_lines:116 | Total records: 100
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | __init__:54 | Failure log: C:\Users\sunha\AppData\Local\Temp\tmpy6sepnr4\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | close:101 | Failure log closed: 0 records written to C:\Users\sunha\AppData\Local\Temp\tmpy6sepnr4\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | __init__:54 | Failure log: C:\Users\sunha\AppData\Local\Temp\tmpkl2bro2j\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | close:101 | Failure log closed: 1 records written to C:\Users\sunha\AppData\Local\Temp\tmpkl2bro2j\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | __init__:54 | Failure log: C:\Users\sunha\AppData\Local\Temp\tmpbzsfpmpk\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | close:101 | Failure log closed: 5 records written to C:\Users\sunha\AppData\Local\Temp\tmpbzsfpmpk\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | __init__:54 | Failure log: C:\Users\sunha\AppData\Local\Temp\tmpul_8e26v\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | close:101 | Failure log closed: 1 records written to C:\Users\sunha\AppData\Local\Temp\tmpul_8e26v\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | __init__:54 | Failure log: C:\Users\sunha\AppData\Local\Temp\tmpjqozgmps\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | close:101 | Failure log closed: 1 records written to C:\Users\sunha\AppData\Local\Temp\tmpjqozgmps\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | __init__:54 | Failure log: C:\Users\sunha\AppData\Local\Temp\tmpjqozgmps\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | close:101 | Failure log closed: 1 records written to C:\Users\sunha\AppData\Local\Temp\tmpjqozgmps\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | __init__:54 | Failure log: C:\Users\sunha\AppData\Local\Temp\tmp9efybyhs\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | close:101 | Failure log closed: 2 records written to C:\Users\sunha\AppData\Local\Temp\tmp9efybyhs\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | __init__:54 | Failure log: C:\Users\sunha\AppData\Local\Temp\tmp1mnelxn3\fix_failures_v202604.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | close:101 | Failure log closed: 0 records written to C:\Users\sunha\AppData\Local\Temp\tmp1mnelxn3\fix_failures_v202604.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | __init__:54 | Failure log: C:\Users\sunha\AppData\Local\Temp\tmpj51pqnz6\sub\dir\fix_failures_v202603.csv
+2026-04-27 14:13:41 | src.modules.m2_od_flow.fix_failure_logger | INFO     | close:101 | Failure log closed: 0 records written to C:\Users\sunha\AppData\Local\Temp\tmpj51pqnz6\sub\dir\fix_failures_v202603.csv

@@ -36,6 +36,5 @@ VALUES
     ('202409', '2024-09-01', 'research/data/基础数据/2024-2026年高速路网拓扑结构表/tom_noderelation202409.csv', '2024年9月起生效'),
     ('202411', '2024-11-01', 'research/data/基础数据/2024-2026年高速路网拓扑结构表/tom_noderelation202411.csv', '2024年11月起生效'),
     ('202507', '2025-07-01', 'research/data/基础数据/2024-2026年高速路网拓扑结构表/tom_noderelation202507.csv', '2025年7月起生效'),
-    ('202512', '2025-12-01', 'research/data/基础数据/2024-2026年高速路网拓扑结构表/tom_noderelation202512.csv', '2025年12月起生效'),
-    ('202603', '2026-03-01', 'research/data/基础数据/2024-2026年高速路网拓扑结构表/tom_noderelation202603.csv', '2026年3月起生效')
+    ('202512', '2025-12-01', 'research/data/基础数据/2024-2026年高速路网拓扑结构表/tom_noderelation202512.csv', '2025年12月起生效')
 ON CONFLICT (version_yyyyMM) DO NOTHING;

@@ -1,5 +1,15 @@
 # 陕交控项目 - pgRouting 路网拓扑优化 Skill
 
+## 前置必读
+
+执行本 Skill 前，**必须**先阅读 `docs/数据表说明.md`，重点关注以下表的字段定义和查询示例：
+- `dwd_tom_noderelation` — 路网拓扑结构明细表（源数据）
+- `dwd_tom_network_edges` — pgRouting 边表
+- `dwd_tom_network_vertices` — pgRouting 节点映射表
+- `dim_tom_noderelation_version` — 路网版本配置表
+
+**禁止**凭记忆假设字段名（如 `enRoadNodeId` vs `enroadnodeid`），必须以 `docs/数据表说明.md` 中的数据字典为准。
+
 ## 概述
 
 本 Skill 用于高速路网拓扑结构的 pgRouting 性能优化，支持收费单元的上一个/下一个单元查询，以及两收费单元间的路径查询。

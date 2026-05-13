@@ -70,7 +70,9 @@ class TestFixFailureLogger:
         assert row[5] == "V456"
         assert row[6] == "2026-03-15 09:50:00"
         assert row[7] == "2026-03-15 10:20:00"
-        assert row[8] == "path_fill_failed:A->B"
+        assert row[8] == ""  # feevehicletype missing
+        assert row[9] == ""  # envehicletype missing
+        assert row[10] == "path_fill_failed:A->B"
 
     def test_log_multiple_failures(self):
         """写入多条失败记录"""
@@ -111,7 +113,7 @@ class TestFixFailureLogger:
 
         assert row[0] == "E1"
         assert row[1] == ""  # exid missing
-        assert row[8] == "some_error"
+        assert row[10] == "some_error"  # reason at index 10 (after feevehicletype, envehicletype)
 
     def test_append_mode_no_duplicate_header(self):
         """追加模式不重复写header"""

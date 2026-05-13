@@ -340,6 +340,10 @@ def fix_intervalgroup(
     intervalgroup: str,
     topology: TopologyChecker,
     intervaltimegroup: str = "",
+    enid: str = "",
+    exid: str = "",
+    entime: str = "",
+    extime: str = "",
     max_iterations: int = 100,
 ) -> IntervalFixResult:
     """
@@ -351,6 +355,10 @@ def fix_intervalgroup(
     3. X1→X2❌ 且 X2→X3❌: 尝试反向，取最短路径
     4. X1→X2✅ 且 X2→X3❌: 窗口滑动到 X2,X3,X4
 
+    当提供 enid/exid 时，将它们插入 seq 头尾参与滑动窗口，
+    使 enid→首门架、末门架→exid 的间隙也被补全。
+    滑动窗口完成后，从结果中移除 enid/exid（它们是收费站而非收费单元）。
+
     当提供 intervaltimegroup 时，同步构建修复后的时间序列：
     - 原始节点：时间直接取对应位置
     - 新增节点（path_fill）：两端已知时间之间等间隔插值
@@ -361,6 +369,10 @@ def fix_intervalgroup(
         intervalgroup: 原始 intervalgroup 字符串
         topology: 拓扑查询器
         intervaltimegroup: 原始 intervaltimegroup 字符串（可选）
+        enid: 入口收费站ID（可选，参与滑动窗口补全 enid→首门架）
+        exid: 出口收费站ID（可选，参与滑动窗口补全 末门架→exid）
+        entime: 入口时间（可选，与 enid 配合的时间插值边界）
+        extime: 出口时间（可选，与 exid 配合的时间插值边界）
         max_iterations: 最大迭代次数，防止死循环
 
     Returns:
@@ -377,18 +389,36 @@ def fix_intervalgroup(
     sections = split_intervalgroup(intervalgroup)
     times = split_intervalgroup(intervaltimegroup) if has_times else []
 
-    if len(sections) <= 2:
-        result.fixed = intervalgroup
-        if has_times:
-            result.fixed_timegroup = intervaltimegroup
-        return result
-
     # Pad times to match sections length
     while len(times) < len(sections):
         times.append("")
 
     seq = sections.copy()
     seq_times = times.copy()
+
+    # Insert enid at head and exid at tail so they participate in the sliding window
+    # This enables gap-filling for enid→first_section and last_section→exid
+    if enid and (not seq or enid != seq[0]):
+        seq.insert(0, enid)
+        seq_times.insert(0, entime or "")
+    if exid and (not seq or exid != seq[-1]):
+        seq.append(exid)
+        seq_times.append(extime or "")
+
+    # After inserting enid/exid, check early return
+    if len(seq) <= 2:
+        # Remove enid/exid before generating output
+        output_list = [s for s in seq if s != enid and s != exid] if (enid or exid) else seq
+        output_times = []
+        if has_times:
+            for idx, s in enumerate(seq):
+                if s != enid and s != exid:
+                    output_times.append(seq_times[idx] if idx < len(seq_times) else "")
+        result.fixed = join_intervalgroup(output_list) if output_list else intervalgroup
+        if has_times and output_times:
+            result.fixed_timegroup = join_intervalgroup(output_times)
+        return result
+
     result_list = [seq[0]]
     time_list = [seq_times[0]] if has_times else [""]
     i = 0
@@ -557,6 +587,17 @@ def fix_intervalgroup(
                 ti = i + idx
                 time_list.append(seq_times[ti] if ti < len(seq_times) else "")
 
+    # Remove enid/exid from result — they are toll stations, not charge sections,
+    # and were only inserted to participate in the sliding window for gap-filling
+    if enid and len(enid) < 16 and result_list and result_list[0] == enid:
+        result_list = result_list[1:]
+        if has_times and time_list:
+            time_list = time_list[1:]
+    if exid and len(exid) < 16 and result_list and result_list[-1] == exid:
+        result_list = result_list[:-1]
+        if has_times and time_list:
+            time_list = time_list[:-1]
+
     result.fixed = join_intervalgroup(result_list)
     if has_times:
         result.fixed_timegroup = join_intervalgroup(time_list)
@@ -576,8 +617,12 @@ def fix_intervalgroup_batch(
     """
     批量修复 intervalgroup（含 intervaltimegroup 同步修复）
 
+    传递 enid/exid/entime/extime 到 fix_intervalgroup，
+    使 enid→首门架、末门架→exid 的间隙也被补全。
+
     Args:
-        records: 记录列表，每条记录包含 tradeid, intervalgroup, intervaltimegroup(可选)
+        records: 记录列表，每条记录包含 enid, exid, intervalgroup, intervaltimegroup(可选),
+                 entime(可选), extime(可选)
         topology: 拓扑查询器（可选，不传则自动创建）
         version: 拓扑版本
 
@@ -589,15 +634,22 @@ def fix_intervalgroup_batch(
         topology.load_topology_cache()
 
     results = []
-    for record in tqdm(records, desc="Processing records"):
+    for record in records:
         tradeid = record.get("tradeid", "")
         intervalgroup = record.get("intervalgroup", "")
         intervaltimegroup = record.get("intervaltimegroup", "")
+        enid = record.get("enid", "")
+        exid = record.get("exid", "")
+        entime = record.get("entime", "")
+        extime = record.get("extime", "")
 
         fix_result = fix_intervalgroup(
             intervalgroup, topology,
             intervaltimegroup=intervaltimegroup,
+            enid=enid, exid=exid,
+            entime=entime, extime=extime,
         )
+
         fix_result.tradeid = tradeid
         results.append(fix_result)
 

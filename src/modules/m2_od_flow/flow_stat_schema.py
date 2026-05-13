@@ -2,9 +2,17 @@
 M2 流量统计 Pydantic 模型
 """
 
+from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field
+
+
+class WorkerStatus(str, Enum):
+    """Worker 执行状态"""
+    SUCCESS = "success"    # 正常完成
+    PARTIAL = "partial"   # 有错误但继续执行
+    FAILED = "failed"     # 崩溃或严重错误
 
 
 class FlowStatParams(BaseModel):
@@ -16,6 +24,13 @@ class FlowStatParams(BaseModel):
     csv_path: str = Field(
         default="",
         description="CSV文件路径，为空则自动拼接到 /home/shy/gaosu_data/gstx_exit_with_min_fee{version}.csv",
+    )
+    data_dir: str = Field(
+        default="",
+        description=(
+            "日文件数据目录。设定后使用 {data_dir}/{version}/data_*.csv "
+            "替代单个月文件，输出为日表。为空则走月文件模式"
+        ),
     )
     section_version: str = Field(
         default="202603",
@@ -76,6 +91,8 @@ class FlowStatResult(BaseModel):
 class WorkerResult(BaseModel):
     """Worker进程返回的统计结果"""
     worker_id: int = Field(..., description="Worker编号")
+    status: WorkerStatus = Field(default=WorkerStatus.SUCCESS, description="执行状态")
+    last_batch_offset: int = Field(default=0, description="最后处理的字节偏移")
     records_processed: int = Field(default=0, description="已处理的原始记录数")
     flow_records_written: int = Field(default=0, description="写入流量表的记录数")
     map_records_inserted: int = Field(default=0, description="插入map表的新记录数")
@@ -83,3 +100,7 @@ class WorkerResult(BaseModel):
     batches: int = Field(default=0, description="处理批次数")
     errors: list[str] = Field(default_factory=list)
     execution_time: Optional[float] = Field(default=None, description="执行时间(秒)")
+    completed_files: list[str] = Field(
+        default_factory=list,
+        description="Worker已完成的日文件列表（日文件模式）",
+    )

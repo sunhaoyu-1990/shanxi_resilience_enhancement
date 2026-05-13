@@ -1,6 +1,9 @@
 {
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "agentvibes"
   ],
-  "enableAllProjectMcpServers": true
+  "enabledPlugins": {
+    "agent-skills@addy-agent-skills": true
+  }
 }
