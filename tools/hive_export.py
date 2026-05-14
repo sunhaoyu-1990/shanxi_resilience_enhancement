@@ -4,9 +4,10 @@
 Hive 通行流水数据导出脚本
 支持指定表名和数据库，支持断点续传
 """
+
+import argparse
 import sys
 import time
-import argparse
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent
@@ -18,7 +19,6 @@ load_dotenv(project_root / ".env")
 
 from pyhive import hive
 from tqdm import tqdm
-
 
 FIELDS = [
     "exid",
@@ -34,6 +34,7 @@ FIELDS = [
     "exvehicleclass",
     "envehicletype",
     "envehicleclass",
+    "mediatype",
 ]
 BATCH_SIZE = 100_000
 
@@ -41,6 +42,7 @@ BATCH_SIZE = 100_000
 def get_hive_config(db_name: str = None) -> dict:
     """获取 Hive 配置"""
     import os
+
     return {
         "host": os.getenv("HIVE_HOST", "172.16.5.1"),
         "port": int(os.getenv("HIVE_PORT", "10000")),
@@ -80,6 +82,7 @@ def test_connection(config: dict) -> bool:
 
 
 # ---- 进度文件管理 ----
+
 
 def _progress_file(output_file: Path) -> Path:
     """进度文件路径"""
@@ -236,7 +239,9 @@ def export(table_name: str, db_name: str, output_file: Path, force: bool = False
             if not rows:
                 break
 
-            with open(output_file, "a" if not is_first_write else "w", encoding="utf-8", newline="") as f:
+            with open(
+                output_file, "a" if not is_first_write else "w", encoding="utf-8", newline=""
+            ) as f:
                 if is_first_write:
                     f.write(",".join(FIELDS) + "\n")
                 for row in rows:
@@ -256,7 +261,11 @@ def export(table_name: str, db_name: str, output_file: Path, force: bool = False
 
         file_size = output_file.stat().st_size
         total_time = time.time() - start_time
-        speed = (total_count - skip_rows) / total_time if total_time > 0 and total_count > skip_rows else 0
+        speed = (
+            (total_count - skip_rows) / total_time
+            if total_time > 0 and total_count > skip_rows
+            else 0
+        )
 
         print()
         print("=" * 60)
@@ -286,6 +295,7 @@ def export(table_name: str, db_name: str, output_file: Path, force: bool = False
         print(f"  导出失败: {e}")
         print(f"  已导出 {exported:,} 行，重新运行将自动续传")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -318,14 +328,18 @@ def main():
     parser = argparse.ArgumentParser(description="Hive 通行流水数据导出（支持断点续传）")
     parser.add_argument("--table", "-t", required=True, help="表名")
     parser.add_argument("--db", "-d", required=True, help="数据库名")
-    parser.add_argument("--output", "-o", default=None, help="输出文件路径（默认: outputs/<table>.csv）")
+    parser.add_argument(
+        "--output", "-o", default=None, help="输出文件路径（默认: outputs/<table>.csv）"
+    )
     parser.add_argument("--force", "-f", action="store_true", help="强制从头导出，忽略已有进度")
 
     args = parser.parse_args()
 
     table_name = args.table
     db_name = args.db
-    output_file = Path(args.output) if args.output else project_root / "outputs" / f"{table_name}.csv"
+    output_file = (
+        Path(args.output) if args.output else project_root / "outputs" / f"{table_name}.csv"
+    )
 
     config = get_hive_config(db_name)
     if not test_connection(config):
