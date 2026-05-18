@@ -1,0 +1,83 @@
+#+TITLE: M7 数据挖掘模块设计
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 模块定位
+
+M7 负责两个数据挖掘任务：
+- 流失高频车辆挖掘：找出在受影响OD对上频繁通行但施工后消失的车辆
+- 绕行高频路段挖掘：通过累加 construction_flow 找出绕行车辆最常走的路段
+
+M7 不属于一期主链路 M0-M5，是独立的数据挖掘工具模块。
+
+* 2. 输入输出
+
+** 2.1 流失高频车辆挖掘
+
+输入：
+| 来源 | 说明 |
+|------|------|
+| OD列表 | enid/exid 或 section_number 格式 |
+| 日表CSV文件 | /home/shy/gaosu_data/{YYYYMM}/data_{YYYYMMDD}.csv |
+| dwd_section_path | 收费单元ID → section_number 映射 |
+| dwd_tom_noderelation | 路网拓扑（用于下钻解析） |
+
+输出：
+| 目标 | 说明 |
+|------|------|
+| CSV文件 | vehicle_id, vehicle_type, frequency（按频次降序） |
+
+** 2.2 绕行高频路段挖掘
+
+输入：
+| 来源 | 说明 |
+|------|------|
+| OD流量列表 | 含 origin, destination, flow_x |
+| 基础表CSV | research/analysis/基础表.xlsx（含OD和numpath映射） |
+| dwd_section_path | 收费单元ID → section_number 映射 |
+
+输出：
+| 目标 | 说明 |
+|------|------|
+| CSV文件 | section_number, accumulated_flow（按流量降序） |
+
+* 3. 核心算法
+
+** 3.1 流失高频车辆挖掘
+
+1. 将OD列表中的 enid/exid 解析为 section_number（通过 SectionOdMatcher，参见 BL-009）
+2. 逐天扫描CSV通行记录，匹配 enid/exid 或 section_number
+3. 统计每辆车的出现频次
+4. 按频次降序输出
+
+** 3.2 绕行高频路段挖掘
+
+1. 对每个OD流量对，在基础表中查找该OD的非受影响numpath
+2. 将 flow_x 按各 numpath 的流量比例分配到各路径
+3. 将每条路径的 section_number 序列展开，累加 construction_flow
+4. 按 section_number 聚合输出
+
+* 4. 代码结构
+
+| 文件 | 职责 |
+|------|------|
+| service.py | M7Service 分发到 LostVehicleMiner 或 DetourSectionMiner |
+| lost_vehicle_miner.py | LostVehicleMiner 扫描CSV匹配OD统计车辆频次 |
+| detour_section_miner.py | DetourSectionMiner 读取基础表计算绕行路段频率 |
+| repository.py | M7Repository section_number 解析、基础表OD查询 |
+| schema.py | ODPair, ODFlowPair, LostVehicleParams/Result, DetourSectionParams/Result |
+
+* 5. 命令行入口
+
+| 命令 | 功能 |
+|------|------|
+| run_m7_lost_vehicle | 流失高频车辆挖掘 |
+| run_m7_detour_section | 绕行高频路段挖掘 |
+
+* 6. 依赖
+
+| 依赖模块 | 用途 |
+|----------|------|
+| src.common.section_od_matcher | enid/exid → section_number 解析 |
+| src.common.version_utils | 版本号解析 |
+| src.modules.m7_data_mining.repository | sectionMap 和 noderelation 下钻 |

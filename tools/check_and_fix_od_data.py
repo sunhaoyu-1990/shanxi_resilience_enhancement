@@ -9,7 +9,8 @@
 3. OD门架字段重构：收费单元(16位)归左、收费站(14位)归右，逗号分隔
 4. OD门架顺序修复：对收费单元组做拓扑顺序检查与修复
 5. 新增字段：OD起点类型、OD终点类型（门架/收费站/门架,收费站）
-6. 路径顺序检查：原路径、绕行路径、保留路径
+6. 路径顺序检查：原路径、绕行路径、保留路径（贪心最短路径算法，从OD起点门架出发逐段确定顺序）
+7. 里程相关字段：原里程（公里）、原交控里程（公里）、绕行里程（公里）、绕行交控里程（公里）、绕行增加里程（公里）、绕行交控增加里程（公里）— 直接透传，不处理
 """
 import sys
 import csv
@@ -102,7 +103,7 @@ class OdDataChecker:
 
     FIELDS_TO_DELETE = ["韧性标记", "nyx匹配标记"]
     AFFECTED_AREA_FIELD = "施工影响区域"
-    PATH_FIELDS = ["原路径", "绕行路径", "保留路径"]
+    PATH_FIELDS = ["原路径", "绕行路径"]
     OD_START_GATE_FIELD = "OD起点门架"
     OD_END_GATE_FIELD = "OD终点门架"
     OD_START_TYPE_FIELD = "OD起点类型"
@@ -532,18 +533,237 @@ class OdDataChecker:
         """DEPRECATED: kept for backward compatibility. Use _sort_sections_by_position."""
         return self._sort_sections_by_position(sections, "")
 
+    def _resolve_start_gate(
+        self, od_start_gate: str, od_start_type: str
+    ) -> tuple[str, list[tuple[str, str, str]]]:
+        """
+        Resolve the start gate for path ordering, with bidirectional fix if needed.
+
+        Returns (start_gate_id, direction_fixes).
+
+        Logic by OD type:
+        - "门架": split od_start_gate by |, take last segment, try original+reversed
+        - "门架,收费站": split by comma, take gate part (left side), then take last | segment
+        - "收费站": take last segment, no direction fix
+        - other: return ("", [])
+        """
+        if not od_start_gate or not od_start_type:
+            return "", [], parts
+
+        # Normalize separators
+        cleaned = od_start_gate.replace(",", "|").replace("\n", "|").replace("\r", "|").replace("\t", "|")
+        parts = [p.strip() for p in cleaned.split("|") if p.strip()]
+
+        # Extract the raw last segment (before direction resolution)
+        last_seg = parts[-1] if parts else ""
+
+        if od_start_type == "门架":
+            if not last_seg:
+                return "", [], parts
+            # Try original and reversed, pick shorter path from previous segment
+            prev_seg = parts[-2] if len(parts) >= 2 else ""
+            if prev_seg:
+                path_orig = self._sp(prev_seg, last_seg)
+                last_rev = reverse_section_id(last_seg)
+                path_rev = self._sp(prev_seg, last_rev) if last_rev else None
+                if path_rev and (not path_orig or len(path_rev) < len(path_orig)):
+                    return last_rev, [(last_seg, last_rev, "start_gate_rev")], parts
+                if path_orig:
+                    return last_seg, [], parts
+            return last_seg, [], parts
+
+        elif od_start_type == "门架,收费站":
+            # Split by comma, take gate part (left side)
+            gate_part = od_start_gate.split(",")[0].strip()
+            gate_cleaned = gate_part.replace(",", "|").replace("\n", "|").replace("\r", "|").replace("\t", "|")
+            gate_parts = [p.strip() for p in gate_cleaned.split("|") if p.strip()]
+            last_gate = gate_parts[-1] if gate_parts else ""
+
+            if not last_gate:
+                return "", [], parts
+
+            # Bidirectional: compare with previous gate
+            prev_gate = gate_parts[-2] if len(gate_parts) >= 2 else ""
+            if prev_gate:
+                path_orig = self._sp(prev_gate, last_gate)
+                last_rev = reverse_section_id(last_gate)
+                path_rev = self._sp(prev_gate, last_rev) if last_rev else None
+                if path_rev and (not path_orig or len(path_rev) < len(path_orig)):
+                    return last_rev, [(last_gate, last_rev, "start_gate_rev")], parts
+                if path_orig:
+                    return last_gate, [], parts
+            return last_gate, [], parts
+
+        elif od_start_type == "收费站":
+            return last_seg, [], parts
+
+        return "", [], parts
+
+    def _greedy_order_path(
+        self,
+        od_start_gate: str,
+        od_start_type: str,
+        path_str: str,
+        field_name: str,
+    ) -> tuple[str, list[tuple[str, str, str]]]:
+        """
+        Greedy shortest-path path ordering.
+
+        1. Resolve start gate from OD start gate (with bidirectional fix if needed).
+        2. Build candidates from path_str (normalize separators, dedupe preserving order).
+        3. Loop: pick candidate with shortest sp(current, cand_dir) as next gate,
+           move current to that gate, remove from candidates.
+        4. Output: "|".join(ordered_gates).
+
+        Returns (fixed_path_str, direction_fixes).
+        """
+        if not path_str or not path_str.strip():
+            return path_str, []
+
+        # Check cache
+        cache_key = f"{od_start_gate}||{od_start_type}||{field_name}||{path_str}"
+        if cache_key in self._path_fix_cache:
+            return self._path_fix_cache[cache_key], []
+
+        # Step 1: resolve start gate
+        start_gate, start_dir_fixes, od_start_list = self._resolve_start_gate(od_start_gate, od_start_type)
+        if not start_gate:
+            return path_str, []
+
+        # Step 2: build candidates
+        cleaned = path_str.replace(",", "|").replace("\n", "|").replace("\r", "|").replace("\t", "|")
+        raw_parts = [p.strip() for p in cleaned.split("|") if p.strip()]
+        raw_parts = set(raw_parts) - set(od_start_list)
+        # Dedup while preserving original order
+        seen: set[str] = set()
+        candidates: list[str] = []
+        for p in raw_parts:
+            if p not in seen:
+                seen.add(p)
+                candidates.append(p)
+
+        ordered: list[str] = []
+        all_dir_fixes: list[tuple[str, str, str]] = list(start_dir_fixes)
+        current = start_gate
+        current_fan = reverse_section_id(start_gate)
+
+        while candidates:
+            best_idx = -1
+            best_path_len = 0
+            best_cand = ""
+            best_dir = ""
+
+            for j, cand in enumerate(candidates):
+                # Try original
+                if current == cand:
+                    sp_orig = [current]
+                    sp_fan_orig = [0,0,0]
+                else:
+                    sp_orig = self._sp(current, cand)
+                    sp_fan_orig = self._sp(cand, current)
+                # Try reversed
+                cand_rev = reverse_section_id(cand)
+                if current == cand_rev:
+                    sp_rev = [current]
+                    sp_fan_rev = [0,0,0]
+                else:
+                    sp_rev = self._sp(current, cand_rev) if cand_rev else None
+                    sp_fan_rev = self._sp(cand_rev, current) if cand_rev else None
+
+                # ------------------------------
+                if current_fan:
+                    if current_fan == cand:
+                        sp_orig_odf = [current_fan]
+                        sp_fan_orig_odf = [0,0,0]
+                    else:
+                        sp_orig_odf = self._sp(current_fan, cand)
+                        sp_fan_orig_odf = self._sp(cand, current_fan)
+                    # Try reversed
+                    cand_rev = reverse_section_id(cand)
+                    if current_fan == cand_rev:
+                        sp_rev_odf = [current_fan]
+                        sp_fan_rev_odf = [0,0,0]
+                    else:
+                        sp_rev_odf = self._sp(current_fan, cand_rev) if cand_rev else None
+                        sp_fan_rev_odf = self._sp(cand_rev, current_fan) if cand_rev else None
+                else:
+                    sp_orig_odf = None
+                    sp_fan_orig_odf = None
+                    sp_rev_odf = None
+                    sp_fan_rev_odf = None
+                
+                for i, orig in enumerate([sp_fan_orig, sp_fan_rev, sp_fan_orig_odf, sp_fan_rev_odf, sp_rev, sp_rev_odf, sp_orig, sp_orig_odf]):
+                    if i == 0:
+                        cand_best_path_len = len(orig) if orig else 100
+                        cand_best = cand
+                        cand_dir = "orig_fan"
+                    else:
+                        if orig and len(orig) <= cand_best_path_len:
+                            cand_best_path_len = len(orig)
+                            if i == 1:
+                                cand_best = cand_rev
+                                cand_dir = "rev_fan"
+                            elif i == 2:
+                                cand_best = cand
+                                cand_dir = "orig_fan_obf"
+                            elif i == 3:
+                                cand_best = cand_rev
+                                cand_dir = "rev_fan_obf"
+                            elif i == 4:
+                                cand_best = cand_rev
+                                cand_dir = "rev"
+                            elif i == 5:
+                                cand_best = cand_rev
+                                cand_dir = "rev_obf"
+                            elif i == 6:
+                                cand_best = cand
+                                cand_dir = "orig"
+                            else:
+                                cand_best = cand
+                                cand_dir = "orig_obf"
+
+                if best_idx == -1 or cand_best_path_len < best_path_len:
+                    best_path_len = cand_best_path_len
+                    best_cand = cand_best
+                    best_dir = cand_dir
+                    best_idx = j
+                
+                if cand_best_path_len <= 2:
+                    break
+
+            if best_idx == -1:
+                # No reachable candidate, keep original order for remaining
+                ordered.extend(candidates)
+                break
+
+            if "rev" in cand_dir:
+                original_id = candidates[best_idx]
+                all_dir_fixes.append((original_id, best_cand, "greedy_dir_fix"))
+
+            if 'fan' in cand_dir:
+                ordered.append(best_cand)
+                del candidates[best_idx]
+            else:
+                current = best_cand
+                current_fan = reverse_section_id(best_cand)
+                ordered.append(best_cand)
+                del candidates[best_idx]
+
+        # ordered = ordered - od_start_list
+        fixed = "|".join(ordered)
+        self._path_fix_cache[cache_key] = fixed
+        return fixed, all_dir_fixes
+
     def _try_direction_fix(
         self, first: str, last: str
     ) -> Optional[tuple[str, str, str]]:
         """Try direction fix for first/last pair"""
-        # Try reverse on last
         last_rev = reverse_section_id(last)
         if last_rev:
             path = self._sp(first, last_rev)
             if path:
                 return (last_rev, last, "reverse_last")
 
-        # Try reverse on first
         first_rev = reverse_section_id(first)
         if first_rev:
             path = self._sp(first_rev, last)
@@ -640,39 +860,11 @@ class OdDataChecker:
             f"od_gates={total_od_gate_unique}"
         )
 
-        # Step 5: Process unique affected area values
-        print("Processing 施工影响区域 (validity + order + membership)...")
-        affected_area_fix_map: dict[str, str] = {}
+        # Step 5: SKIP — 施工影响区域核查（validity + order + membership）
+        print("Processing 施工影响区域 skipped — preserving original values")
 
-        for idx, (area, row_indices) in enumerate(unique_affected_areas.items()):
-            if (idx + 1) % 20 == 0 or idx == len(unique_affected_areas) - 1:
-                print(
-                    f"  Affected area {idx + 1}/{len(unique_affected_areas)}"
-                )
-            self.clear_sp_cache()
-
-            # 5a. Validity check
-            self.check_section_id_validity(area, row_indices)
-
-            # 5b. Order check and fix
-            fixed_area = self.check_and_fix_path_order(
-                area, self.AFFECTED_AREA_FIELD
-            )
-            if fixed_area != area:
-                affected_area_fix_map[area] = fixed_area
-                area = fixed_area  # Use fixed value for membership check
-
-            # 5c. Membership check
-            sections = split_intervalgroup(area)
-            self.check_path_membership(sections)
-
-        # Step 6: Process unique path values (SKIP — path order fix disabled)
-        # path_fix_maps stays empty; original path values are preserved
-        print("Processing path fields (order) skipped — preserving original values")
-        path_fix_maps: dict[str, dict[str, str]] = defaultdict(dict)
-
-        # Step 6.5: Process unique OD gate values (restructure + order-check)
-        print("Processing OD gate fields (restructure + order)...")
+        # Step 5.5: OD门架字段重构 + OD类型计算（提前到路径处理之前）
+        print("Processing OD gate fields (restructure)...")
         od_gate_fix_maps: dict[str, dict[str, str]] = defaultdict(dict)
 
         for gf in [self.OD_START_GATE_FIELD, self.OD_END_GATE_FIELD]:
@@ -687,31 +879,80 @@ class OdDataChecker:
                 if fixed_val != gate_val:
                     od_gate_fix_maps[gf][gate_val] = fixed_val
 
-        # Step 7: Apply fixes to all rows and add new fields
-        print("Applying fixes to all rows...")
-        for row_idx, row in enumerate(rows):
-            # Fix affected area
-            area = row.get(self.AFFECTED_AREA_FIELD, "").strip()
-            if area in affected_area_fix_map:
-                row[self.AFFECTED_AREA_FIELD] = affected_area_fix_map[area]
+        # Apply gate restructure and determine OD types for all rows FIRST
+        print("Applying gate restructure and computing OD types...")
+        od_type_cache: dict[str, str] = {}  # cache restructured gate -> od_type
 
-            # Path fields (原路径/绕行路径/保留路径) — preserved as-is
-
-            # Restructure OD gate fields and derive OD types
+        for row in rows:
             start_gate = row.get(self.OD_START_GATE_FIELD, "").strip()
             end_gate = row.get(self.OD_END_GATE_FIELD, "").strip()
 
-            # Apply restructure fixes (deduplicated)
+            # Apply gate restructure
             if start_gate and start_gate in od_gate_fix_maps[self.OD_START_GATE_FIELD]:
                 start_gate = od_gate_fix_maps[self.OD_START_GATE_FIELD][start_gate]
-                row[self.OD_START_GATE_FIELD] = start_gate
             if end_gate and end_gate in od_gate_fix_maps[self.OD_END_GATE_FIELD]:
                 end_gate = od_gate_fix_maps[self.OD_END_GATE_FIELD][end_gate]
-                row[self.OD_END_GATE_FIELD] = end_gate
 
-            # Derive OD types from restructured gate values
-            row[self.OD_START_TYPE_FIELD] = self.determine_od_type(start_gate)
-            row[self.OD_END_TYPE_FIELD] = self.determine_od_type(end_gate)
+            row[self.OD_START_GATE_FIELD] = start_gate
+            row[self.OD_END_GATE_FIELD] = end_gate
+
+            # Compute and cache OD types
+            if start_gate not in od_type_cache:
+                od_type_cache[start_gate] = self.determine_od_type(start_gate)
+            if end_gate not in od_type_cache:
+                od_type_cache[end_gate] = self.determine_od_type(end_gate)
+
+            row[self.OD_START_TYPE_FIELD] = od_type_cache[start_gate]
+            row[self.OD_END_TYPE_FIELD] = od_type_cache[end_gate]
+
+        # Step 6: Process unique path values using greedy shortest-path ordering
+        print("Processing path fields (greedy sp ordering)...")
+        path_fix_maps: dict[str, dict[str, str]] = defaultdict(dict)
+
+        for pf in self.PATH_FIELDS:
+            unique_vals = unique_paths[pf]
+            print(f"  {pf}: {len(unique_vals)} unique values")
+
+            for idx, (path_val, _) in enumerate(unique_vals.items()):
+                if path_val == '空':
+                    continue
+                if (idx + 1) % 100 == 0 or idx == len(unique_vals) - 1:
+                    print(f"    {pf} {idx + 1}/{len(unique_vals)}")
+                self.clear_sp_cache()
+
+                od_start_gate = ""
+                od_start_type = ""
+                # Find the corresponding row to get OD start gate/type
+                for ri in unique_paths[pf][path_val]:
+                    od_start_gate = rows[ri].get(self.OD_START_GATE_FIELD, "").strip()
+                    od_start_type = rows[ri].get(self.OD_START_TYPE_FIELD, "").strip()
+                    break
+
+                if not od_start_gate:
+                    continue
+
+                fixed_val, dir_fixes = self._greedy_order_path(
+                    od_start_gate, od_start_type, path_val, pf
+                )
+                if fixed_val != path_val:
+                    path_fix_maps[pf][path_val] = fixed_val
+                for orig, fixed_id, detail in dir_fixes:
+                    self.report.direction_fix_records.append(
+                        DirectionFixRecord(
+                            field_name=pf,
+                            original_id=orig,
+                            fixed_id=fixed_id,
+                            detail=detail,
+                        )
+                    )
+
+        # Step 7: Apply path fixes to all rows
+        print("Applying path fixes to all rows...")
+        for row in rows:
+            for pf in self.PATH_FIELDS:
+                val = row.get(pf, "").strip()
+                if val and val in path_fix_maps[pf]:
+                    row[pf] = path_fix_maps[pf][val]
 
         # Step 8: Write output CSV
         print(f"Writing output CSV: {output_csv}")
@@ -740,86 +981,15 @@ class OdDataChecker:
 
         with open(report_path, "w", encoding="utf-8") as f:
             f.write("=" * 70 + "\n")
-            f.write("工程OD详细数据 — 检查报告\n")
+            f.write("工程OD详细数据 — 处理报告\n")
             f.write("=" * 70 + "\n\n")
 
             f.write(f"总行数: {self.report.total_rows}\n")
             f.write(
                 f"唯一施工影响区域值: {self.report.unique_affected_area_count}\n"
             )
-            f.write(f"唯一路径值: {self.report.unique_path_count}\n\n")
-
-            # Invalid IDs — report per unique value
-            f.write("-" * 70 + "\n")
-            f.write(
-                f"1. 非法单元ID ({len(self.report.invalid_id_records)} 个唯一值, "
-                f"涉及{sum(len(r.affected_rows) for r in self.report.invalid_id_records)}行)\n"
-            )
-            f.write("-" * 70 + "\n")
-            for rec in self.report.invalid_id_records:
-                f.write(
-                    f"  非法ID: {', '.join(rec.invalid_ids)}\n"
-                    f"    完整值: {rec.affected_value[:120]}\n"
-                    f"    涉及行数: {len(rec.affected_rows)}\n"
-                )
-
-            # Order fixes
-            f.write("\n" + "-" * 70 + "\n")
-            f.write(
-                f"2. 顺序修复 ({len(self.report.order_fix_records)} 条)\n"
-            )
-            f.write("-" * 70 + "\n")
-            for rec in self.report.order_fix_records:
-                f.write(f"  [{rec.field_name}]\n")
-                f.write(f"    原值: {rec.original[:150]}\n")
-                f.write(f"    修复: {rec.fixed[:150]}\n")
-                f.write(f"    说明: {rec.detail}\n")
-
-            # Direction fixes
-            f.write("\n" + "-" * 70 + "\n")
-            f.write(
-                f"3. 方向修正 ({len(self.report.direction_fix_records)} 条)\n"
-            )
-            f.write("-" * 70 + "\n")
-            for rec in self.report.direction_fix_records:
-                f.write(
-                    f"  [{rec.field_name}] {rec.original_id} -> "
-                    f"{rec.fixed_id} ({rec.detail})\n"
-                )
-
-            # Membership issues
-            f.write("\n" + "-" * 70 + "\n")
-            f.write(
-                f"4. 路径成员合理性 ({len(self.report.membership_records)} 条)\n"
-            )
-            f.write("-" * 70 + "\n")
-            for rec in self.report.membership_records:
-                f.write(f"  区域: {rec.affected_area[:120]}\n")
-                f.write(f"    {rec.detail}\n")
-
-            # Mixed OD types
-            f.write("\n" + "-" * 70 + "\n")
-            f.write(
-                f"5. OD类型混合 ({len(self.report.mixed_type_records)} 条)\n"
-            )
-            f.write("-" * 70 + "\n")
-            for rec in self.report.mixed_type_records:
-                f.write(
-                    f"  行{rec.row_idx} [{rec.field_name}]: "
-                    f"types={rec.types_found}, value={rec.ids_str}\n"
-                )
-
-            # Unfixable paths
-            f.write("\n" + "-" * 70 + "\n")
-            f.write(
-                f"6. 无法修复的路径 ({len(self.report.unfixable_paths)} 条)\n"
-            )
-            f.write("-" * 70 + "\n")
-            for rec in self.report.unfixable_paths:
-                f.write(
-                    f"  [{rec['field']}] {rec['sections'][:150]} "
-                    f"({rec['reason']})\n"
-                )
+            f.write(f"唯一路径值: {self.report.unique_path_count}\n")
+            f.write("\n（施工影响区域核查、路径顺序修复已跳过；OD门架重构已启用）\n")
 
         print(f"Report saved to: {report_path}")
 
@@ -858,8 +1028,8 @@ def main():
         / "方案OD映射相关表"
         / "区间方向和区域对应关系.csv"
     )
-    output_csv = str(project_root / "outputs" / "工程OD详细数据_fixed_v2.csv")
-    report_path = str(project_root / "outputs" / "od_data_check_report_v2.txt")
+    output_csv = str(project_root / "outputs" / "工程OD详细数据_fixed_v5.csv")
+    report_path = str(project_root / "outputs" / "od_data_check_report_v5.txt")
 
     checker = OdDataChecker()
     checker.load_reference_data(ref_csv)

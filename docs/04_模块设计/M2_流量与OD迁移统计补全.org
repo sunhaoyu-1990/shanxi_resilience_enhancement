@@ -1,246 +1,114 @@
-#+TITLE: M2 流量与OD迁移统计补全模块设计
+#+TITLE: M2 收费单元-OD(path)小时流量统计模块设计
 #+STARTUP: overview
 #+OPTIONS: toc:2 num:t
 
 * 1. 模块定位
-M2 是一期主链中承上启下的关键模块。
 
-M2 的职责是：
-- 基于历史通行数据，统计收费单元/OD/Path 的历史流量
-- 将历史流量汇总到标准粒度
-- 对缺失映射、缺失流量进行补全
-- 形成后续 M3 交通影响分析所需的基准流量底座
+M2 是一期主链中承上启下的关键模块，负责从原始通行流水数据统计收费单元-OD(path)级别的小时流量。
 
-M2 当前阶段是“统计 + 补全”模块，不负责最终交通影响修正，也不负责分流路径生成。
+M2 的核心职责：
+- 从 CSV 通行流水或 Hive 表读取原始通行记录
+- 对 intervalgroup 进行拓扑修复（补全断裂、修正方向）
+- 将收费单元ID序列映射为 section_number 并去重生成 numpath
+- 按 od_section_path_id 查找或插入映射记录
+- 按小时粒度聚合流量，写入 PostgreSQL
 
-* 2. 当前阶段目标
-当前阶段重点实现：
-- 收费单元-OD 日流量统计
-- 收费单元日流量统计
-- 必要的路径归并
-- 缺失项补全
-- 输出可供 M3 使用的标准流量结果表
+* 2. 实际实现（非原始设计）
 
-根据当前项目计划，本阶段最终至少要输出：
-- 断面/收费单元-OD 流量统计表（日）
-- 断面/收费单元流量表（日）
-并要求后续流量相关表尽量分车型。:contentReference[oaicite:1]{index=1}
+实际实现使用 `dws_section_od_path_flow_hour` 系列表（月表或日表），而非原始设计中的 `dws_section_od_flow_day`。
 
-* 3. 输入
-** 3.1 上游输入表
-- dwd_single_trip_info
-- dim_section_info
-- dim_station_info
-- dwd_od_path_map
-- dim_road_topology
-- dws_section_capacity_day（供后续联动参考）
+有两个实现版本：
+1. **m2_flow_od_completion/** — 框架占位版，通过 SQL 驱动的 service/repository 模式
+2. **m2_od_flow/** — 实际运行版，基于 CSV/Hive 直接读取 + Python 内存聚合
 
-** 3.2 输入内容说明
-核心输入包括：
-- 单次通行明细
-- 收费单元标准信息
-- 收费站标准信息
-- OD 与路径映射关系
-- 拓扑关系
-- 历史时间范围与日期维度
+本文档描述 m2_od_flow（实际运行版）。
 
-* 4. 输出
-** 4.1 核心输出表
-- dws_section_od_flow_day
-- dws_section_flow_day
+* 3. 输入输出
 
-** 4.2 可选扩展输出
-- dws_od_path_flow_day
-- dws_section_od_flow_day_filled
-- dws_flow_fill_log
+** 3.1 输入
 
-** 4.3 输出用途
-- 供 M3 做施工影响修正
-- 为后续路径优化提供 OD 基础流量参考
-- 为最终方案测算提供基准流量数据
+| 来源 | 说明 |
+|------|------|
+| CSV通行流水 | 每月~3900万行，16GB，格式：gstx_exit_with_min_fee{YYYYMM}.csv |
+| 日表CSV | /home/shy/gaosu_data/{YYYYMM}/data_{YYYYMMDD}.csv |
+| dwd_section_path | 收费单元ID → section_number 映射 |
+| dwd_tom_noderelation | 路网拓扑关系（用于 intervalgroup 修复） |
+| dwd_tom_network_edges | pgRouting 拓扑边（用于最短路径修复） |
+| dwd_od_section_path_map | OD-Section-Path 映射表（查找或插入） |
 
-* 5. 模块边界
-M2 只负责：
-- 历史流量统计
-- OD 粒度映射
-- 路径归并
-- 缺失补全
+** 3.2 输出
 
-M2 不负责：
-- 施工影响比例判定
-- 受影响 OD 迁移结果最终输出
-- 候选路径择优
-- 通行费影响测算
+| 表名 | 说明 | 主键粒度 |
+|------|------|---------|
+| dws_section_od_path_flow_hour_{YYYYMM} | 月表版本 | (section_id, od_section_path_id, stat_hour, vehicle_type) |
+| dws_section_od_path_flow_hour_{YYYYMMDD} | 日表版本 | (section_id, od_section_path_id, stat_hour, vehicle_type) |
+| dwd_od_section_path_map | OD-Section-Path 主映射（查找时自动插入新记录） | (enid, exid, numpath, version_yyyyMM) |
 
-* 6. 核心处理逻辑
+* 4. 核心算法
 
-** 6.1 历史通行明细标准化
-从 dwd_single_trip_info 读取：
-- 车辆类型
-- 出入口收费站
-- 通行时间
-- 路径信息（若有）
-- 收费金额
-- 里程信息
+** 4.1 数据处理流程
 
-统一转为标准统计输入。
+CSV读取 → intervalgroup修复 → numpath映射 → od_section_path_id查找/插入 → 小时截断+去重 → 内存聚合 → 批量upsert
 
-** 6.2 构建 OD 标识
-根据入口收费站和出口收费站构建 OD 统一标识：
-- od_id
+** 4.2 intervalgroup 拓扑修复
 
-说明：
-当前阶段允许用“entry_station_id + exit_station_id”组合生成统一编码。
+详见 [[../业务逻辑记录.md::BL-004][BL-004: intervalgroup 拓扑修复算法]]
 
-** 6.3 路径映射与归并
-利用 dwd_od_path_map 和收费单元表，将历史通行记录映射到路径级。
+核心：滑动窗口三元组(X1,X2,X3)，4种Case处理断裂和方向错误，通过 pgRouting 最短路径补全缺失节点。
 
-当前特别要求：
-- 单一路径收费单元可按 section_number 做归并
-- 归并规则必须保持可追溯
+** 4.3 numpath 去重
 
-** 6.4 收费单元-OD 日流量统计
-生成：
-- dws_section_od_flow_day
+详见 [[../业务逻辑记录.md::BL-005][BL-005: numpath 去重算法]]
 
-粒度：
-- 收费单元 × OD × 日期 × 车型
+步骤：section_id→section_number替换 → 相邻去重 → 配对去重 → 再次相邻去重
 
-** 6.5 收费单元日流量统计
-生成：
-- dws_section_flow_day
+** 4.4 od_section_path_id 查找/插入
 
-粒度：
-- 收费单元 × 日期 × 车型
+对每条修复后的记录，用 (enid, exid, numpath, version) 在 dwd_od_section_path_map 中查找 od_section_path_id。未找到时自动 INSERT 新记录并获取新 ID。
 
-** 6.6 缺失补全
-当前阶段允许采用较保守方式做补全，例如：
-- 依据相邻日期
-- 依据相近路径
-- 依据历史均值
-- 依据同 section_number 归并后的分配规则
+** 4.5 小时截断与去重
 
-补全结果必须带来源标识：
-- actual
-- filled
-- rule
+- 入口时间（entime）截断到小时作为 stat_hour
+- 同一 tradeid 只计算一次（按 tradeid 去重）
 
-* 7. 当前最小输入输出定义
+** 4.6 内存聚合与批量 upsert
 
-** 输入最小集
-- dwd_single_trip_info
-- dim_section_info
-- dwd_od_path_map
+- 使用 defaultdict 在内存中聚合 (section_id, od_section_path_id, stat_hour, vehicle_type) → flow_cnt
+- 每 mini_batch（默认50000条）刷盘一次
+- 使用 ON CONFLICT ... DO UPDATE SET flow_cnt = table.flow_cnt + EXCLUDED.flow_cnt 累加
 
-** 输出最小集
-- dws_section_od_flow_day
-- dws_section_flow_day
+* 5. 并行处理
 
-* 8. 关键表设计
+M2 支持多进程并行处理：
+- 使用 multiprocessing.Pool (fork 模式)
+- 预扫描 CSV 建立行偏移索引，Worker seek 到指定位置
+- 共享数据（sectionMap、TopologyChecker）通过 fork CoW 共享
+- 每个 Worker 创建独立的 Repository 和数据库连接
+- 支持断点续跑（checkpoint 机制）
 
-** dws_section_od_flow_day
-*** 用途
-收费单元-OD-日期-车型粒度流量统计表，是 M2 的核心输出之一。
+详见 [[file:../M2_收费单元_OD_path_小时流量统计运行说明.md][M2 运行说明]]
 
-*** 粒度
-收费单元 × OD × 日期 × 车型
+* 6. 代码结构
 
-*** 当前关键字段
-- section_id
-- od_id
-- stat_date
-- vehicle_type
-- flow_cnt
-- flow_pcu
-- source_flag
-- created_at
-- updated_at
+| 文件 | 职责 |
+|------|------|
+| flow_stat_service.py | FlowStatService 业务编排 |
+| flow_stat_repository.py | FlowStatRepository 数据访问、upsert、映射查找 |
+| flow_stat_schema.py | FlowStatParams, FlowStatResult, FlowStatRecord |
+| csv_reader.py | iter_csv_batches CSV批量读取 |
+| interval_fixer.py | fix_intervalgroup, TopologyChecker |
+| hive_repository.py | Hive 连接、iter_hive_batches |
+| checkpoint.py | 断点续跑管理 |
+| fix_failure_logger.py | 修复失败记录日志 |
 
-*** 备注
-- source_flag 用于标识实际值或补全值
-- 必要时可补充 path_id 作为扩展维度
+* 7. 命令行入口
 
-** dws_section_flow_day
-*** 用途
-收费单元日流量汇总表，是后续施工影响分析的直接输入之一。
+| 命令 | 功能 |
+|------|------|
+| run_m2_flow_stat | 收费单元-OD(path)小时流量统计（支持单月/多月/并行） |
+| validate_m2_daily_flow | 日表统计结果验证 |
 
-*** 粒度
-收费单元 × 日期 × 车型
+* 8. 数据校验
 
-*** 当前关键字段
-- section_id
-- stat_date
-- vehicle_type
-- flow_cnt
-- flow_pcu
-- created_at
-- updated_at
-
-* 9. 数据校验要求
-
-** 9.1 单次通行明细校验
-- trip_id 不为空
-- entry_station_id / exit_station_id 不为空
-- vehicle_type 不为空
-- 时间字段合法
-
-** 9.2 OD 构建校验
-- od_id 生成规则统一
-- 同一 entry_station_id + exit_station_id 必须生成唯一 od_id
-
-** 9.3 路径映射校验
-- od_id 对应的 path_id 不得为空
-- path_sections 应可映射到收费单元
-- section_number 归并逻辑必须可追溯
-
-** 9.4 输出表校验
-- dws_section_od_flow_day 同一主键不得重复
-- dws_section_flow_day 同一主键不得重复
-- flow_cnt / flow_pcu 不得为负
-- filled 数据必须有 source_flag 标识
-
-* 10. Python 任务建议
-建议至少拆分以下任务：
-
-- run_m2_prepare_trip_base
-- run_m2_build_od_id
-- run_m2_build_section_od_flow_day
-- run_m2_build_section_flow_day
-- run_m2_fill_missing_flow
-- run_m2_check_output
-- run_m2_all
-
-* 11. SQL 清单建议
-建议至少建立以下 SQL：
-
-- sql/ddl/dws/create_dws_section_od_flow_day.sql
-- sql/ddl/dws/create_dws_section_flow_day.sql
-
-- sql/dml/m2/build_od_id_mapping.sql
-- sql/dml/m2/build_dws_section_od_flow_day.sql
-- sql/dml/m2/build_dws_section_flow_day.sql
-- sql/dml/m2/fill_missing_section_od_flow.sql
-
-- sql/checks/m2/check_dws_section_od_flow_day.sql
-- sql/checks/m2/check_dws_section_flow_day.sql
-
-* 12. 风险点
-** 风险 1：路径映射不完整
-若历史通行数据无法稳定映射到 path_id，会影响 OD-Path 统计精度。
-
-** 风险 2：section_number 归并规则影响结果
-归并方式不同，可能影响收费单元与断面的统计结果。
-
-** 风险 3：缺失补全规则偏差
-当前阶段补全以工程可用为主，但统计偏差需要可追踪。
-
-** 风险 4：历史数据清洗成本高
-近五年数据可能存在字段版本差异、缺失、异常峰值等问题。
-
-* 13. 当前 TODO
-- [ ] 明确 trip 明细表字段全集
-- [ ] 明确 od_id 编码规则
-- [ ] 明确 path_id 生成或引用规则
-- [ ] 明确 flow_pcu 折算规则
-- [ ] 明确缺失补全优先级规则
-- [ ] 明确是否单独输出 dws_od_path_flow_day
+- validate_m2_daily_flow: 数量级验证（V4汇总检查）+ 抽样溯源验证（V5抽样检查）
+- sql/checks/m2/: 必填字段、值范围、SourceFlag 分布

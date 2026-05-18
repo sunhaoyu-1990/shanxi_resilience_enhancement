@@ -9,14 +9,18 @@ M7 绕行高频路段挖掘 - 命令行入口
   uv run python -m src.jobs.run_m7_detour_section \
     --od-flow-list "G000561001000110,G007061001000120,100" "2,146,50"
 
-  # 从文件读取
+  # 从 xlsx 文件读取
+  uv run python -m src.jobs.run_m7_detour_section \
+    --od-flow-file research/analysis/od_flow.xlsx \
+    --base-table research/analysis/基础表.xlsx
+
+  # 从 CSV 文件读取
   uv run python -m src.jobs.run_m7_detour_section \
     --od-flow-file od_flow_list.csv \
-    --base-table research/analysis/基础表.csv
+    --base-table research/analysis/基础表.xlsx
 """
 
 import argparse
-import csv
 import os
 import sys
 
@@ -56,23 +60,59 @@ def parse_od_flow_list(odFlowListStr: list[str]) -> list[ODFlowPair]:
 
 
 def parse_od_flow_file(filePath: str) -> list[ODFlowPair]:
-    """从CSV文件读取OD+流量列表，格式: origin,destination,flow_x"""
+    """从文件读取OD+流量列表，支持 CSV 和 xlsx 格式
+
+    CSV 格式: origin,destination,flow_x
+    xlsx 格式: OD_num (如 "378|152"), 绕行流量
+    按文件扩展名自动识别格式
+    """
+    from src.common.file_loader import load_tabular
+
     odFlowPairs = []
-    with open(filePath, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
+    ext = os.path.splitext(filePath)[1].lower()
+
+    if ext in (".xlsx", ".xls"):
+        # xlsx 格式: OD_num = "origin|destination", 绕行流量 = flow_x
+        rows = load_tabular(filePath, columns=["OD_num", "绕行流量"])
+        for row in rows:
+            odNum = row.get("OD_num", "")
+            flowStr = row.get("绕行流量", "0")
+            if not odNum or "|" not in odNum:
+                logger.warning(f"无效的 OD_num 格式: {odNum}")
+                continue
+            parts = odNum.split("|")
+            if len(parts) != 2:
+                logger.warning(f"无效的 OD_num 格式: {odNum}")
+                continue
             try:
-                flowX = int(row["flow_x"])
-            except (ValueError, KeyError):
+                flowX = int(float(flowStr))
+            except (ValueError, TypeError):
+                logger.error(f"无效的流量值: {flowStr}")
+                continue
+            odFlowPairs.append(
+                ODFlowPair(
+                    origin=parts[0].strip(),
+                    destination=parts[1].strip(),
+                    flow_x=flowX,
+                )
+            )
+    else:
+        # CSV 格式: origin,destination,flow_x
+        rows = load_tabular(filePath, columns=["origin", "destination", "flow_x"])
+        for row in rows:
+            try:
+                flowX = int(float(row.get("flow_x", "0")))
+            except (ValueError, TypeError):
                 logger.error(f"无效的流量值: {row}")
                 continue
             odFlowPairs.append(
                 ODFlowPair(
-                    origin=row["origin"].strip(),
-                    destination=row["destination"].strip(),
+                    origin=row.get("origin", "").strip(),
+                    destination=row.get("destination", "").strip(),
                     flow_x=flowX,
                 )
             )
+
     logger.info(f"从 {filePath} 读取 {len(odFlowPairs)} 个OD流量对")
     return odFlowPairs
 
@@ -82,17 +122,17 @@ def main():
     parser.add_argument(
         "--od-flow-list",
         nargs="+",
-        default=["378,152,50"],
+        # default=["378,152,50"],
         help='OD流量对列表，格式: "origin,destination,flow_x"（可多个）',
     )
     parser.add_argument(
-        "--od-flow-file",
-        help="OD流量对CSV文件路径，格式: origin,destination,flow_x",
+        "--od-flow-file",default="research/analysis/od_flow.xlsx",
+        help="OD流量对文件路径（支持 CSV 和 xlsx）",
     )
     parser.add_argument(
         "--base-table",
-        default="research/analysis/基础表.csv",
-        help="基础表CSV路径",
+        default="research/analysis/基础表.xlsx",
+        help="基础表路径（支持 CSV 和 xlsx）",
     )
     parser.add_argument(
         "--output",

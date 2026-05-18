@@ -41,6 +41,7 @@ ROAD_NAME_MAP = {
     "福银高速": "福银",
     "西永高速": "西永",
     "合浦高速": "合蒲",  # note: "浦" vs "蒲"
+    "包茂高速": "包茂",
 }
 
 # Reverse mapping: short name → full name
@@ -88,6 +89,7 @@ def excel_serial_to_month(serial) -> str:
     - datetime object (from openpyxl XLSX auto-conversion)
     - int/float Excel serial number (46023)
     - "YYYY-MM-DD" or "YYYY/MM/DD" string
+    - Pure digit string like "46023" (Excel serial as string from CSV)
     """
     s = str(serial).strip()
 
@@ -100,6 +102,12 @@ def excel_serial_to_month(serial) -> str:
 
     if isinstance(serial, datetime):
         return serial.strftime("%Y-%m")
+
+    # Pure digit string (Excel serial stored as string from CSV)
+    if s.isdigit():
+        dt = _EXCEL_EPOCH + timedelta(days=int(s))
+        return dt.strftime("%Y-%m")
+
     if isinstance(serial, (int, float)):
         dt = _EXCEL_EPOCH + timedelta(days=int(serial))
         return dt.strftime("%Y-%m")
@@ -693,6 +701,10 @@ def main():
         "原路径费用（万元）", "绕行路径费用（万元）", "保留路径费用（万元）", "流失流量费用（万元）",
         "原路径交控费用（万元）", "绕行路径交控费用（万元）", "保留路径交控费用（万元）", "流失流量交控费用（万元）",
         "总损失费用（万元）", "交控总损失费用（万元）",
+        # 里程字段（公里）
+        "原里程（公里）", "原交控里程（公里）",
+        "绕行里程（公里）", "绕行交控里程（公里）",
+        "绕行增加里程（公里）", "绕行交控增加里程（公里）",
     ]
     df_flow_cost = result[flow_cost_cols]
 

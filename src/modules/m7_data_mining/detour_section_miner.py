@@ -84,6 +84,8 @@ class DetourSectionMiner:
                 for numpath, flowValue in selectedNumpaths:
                     sectionNumbers = self._parse_numpath(numpath)
                     for sn in sectionNumbers:
+                        if sn in [int(odFlow.origin), int(odFlow.destination)]:
+                            continue
                         sectionFlow[sn] += flowValue
 
             # Step 4: 输出
@@ -128,13 +130,14 @@ class DetourSectionMiner:
         from src.common.file_loader import load_tabular
 
         logger.info(f"加载基础表: {baseTablePath}")
-        columns = ["enid", "exid", "numpath", "is_affected", "construction_flow", "vehicle_type"]
+        columns = ["OD_num", "enid", "exid", "numpath", "is_affected", "construction_flow", "vehicle_type"]
         rawRecords = load_tabular(baseTablePath, columns=columns)
 
         records = []
         for row in rawRecords:
             records.append(
                 {
+                    "OD_num": row.get("OD_num", ""),
                     "enid": row.get("enid", ""),
                     "exid": row.get("exid", ""),
                     "numpath": row.get("numpath", ""),
@@ -178,7 +181,7 @@ class DetourSectionMiner:
             if isSectionFormat:
                 # section_number 格式：通过 numpath 首尾与输入 OD 匹配
                 inputOdNum = M7Repository._normalize_section_pair(odFlow.origin, odFlow.destination)
-                recordOdNum = M7Repository._transform_numpath(record["numpath"])
+                recordOdNum = M7Repository._transform_numpath(record["OD_num"])
                 if inputOdNum == recordOdNum:
                     matched = True
             else:

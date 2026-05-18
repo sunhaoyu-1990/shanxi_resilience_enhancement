@@ -39,11 +39,14 @@ env/
 htmlcov/
 .tox/
 
+# Analysis outputs
+src/analysis_results/
+
 # Environment
 .env
 .env.local
 
-# uv lock file (auto-generated)
+# Package manager
 uv.lock
 
 # Large data exports

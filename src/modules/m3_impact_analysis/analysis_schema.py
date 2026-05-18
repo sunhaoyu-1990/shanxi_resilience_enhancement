@@ -41,6 +41,7 @@ class AffectedOdPathRecord(BaseModel):
     total_length_meters: Optional[int] = Field(default=None, description="总里程（米）")
     control_fee_yuan: Optional[float] = Field(default=None, description="交控通行费（元）")
     control_length_meters: Optional[int] = Field(default=None, description="交控里程（米）")
+    section_od: Optional[str] = Field(default=None, description="路段级别OD（section_number排序后|拼接）")
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -112,6 +113,7 @@ class MidTripExitFlowStatRecord(BaseModel):
     control_loss_fee_yuan: Optional[float] = Field(default=None, description="施工期间交控损失金额汇总（元）")
     sp2025_loss_fee_yuan: Optional[float] = Field(default=None, description="2025同期损失金额汇总（元）")
     sp2025_control_loss_fee_yuan: Optional[float] = Field(default=None, description="2025同期交控损失金额汇总（元）")
+    section_od: Optional[str] = Field(default=None, description="路段级别OD（section_number排序后|拼接）")
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -183,6 +185,7 @@ class DetourFlowStatRecord(BaseModel):
     control_loss_fee_yuan: Optional[float] = Field(default=None, description="施工期间交控损失金额汇总（元）")
     sp2025_loss_fee_yuan: Optional[float] = Field(default=None, description="2025同期损失金额汇总（元）")
     sp2025_control_loss_fee_yuan: Optional[float] = Field(default=None, description="2025同期交控损失金额汇总（元）")
+    section_od: Optional[str] = Field(default=None, description="路段级别OD（section_number排序后|拼接）")
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -212,6 +215,7 @@ class ImpactSummaryRecord(BaseModel):
     """影响分析综合汇总记录（流程1+2+3 合并）"""
     enid: str = Field(..., description="入口站ID")
     exid: str = Field(..., description="出口站ID")
+    section_od: Optional[str] = Field(default=None, description="路段级别OD（section_number排序后|拼接）")
     vehicle_type: str = Field(..., description="车型")
     # 流程1 聚合 — 均值
     avg_con_fee: float = Field(default=0.0, description="受影响path通行费均值(fee_yuan)")

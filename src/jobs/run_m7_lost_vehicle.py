@@ -21,7 +21,6 @@ M7 流失高频车辆挖掘 - 命令行入口
 """
 
 import argparse
-import csv
 import os
 import sys
 
@@ -67,17 +66,21 @@ def parse_od_list(odListStr: list[str]) -> list[ODPair]:
 
 
 def parse_od_file(filePath: str) -> list[ODPair]:
-    """从CSV文件读取OD列表，格式: origin,destination"""
+    """从文件读取OD列表，支持 CSV 和 xlsx 格式
+
+    格式: origin,destination
+    """
+    from src.common.file_loader import load_tabular
+
     odPairs = []
-    with open(filePath, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            odPairs.append(
-                ODPair(
-                    origin=row["origin"].strip(),
-                    destination=row["destination"].strip(),
-                )
+    rows = load_tabular(filePath, columns=["origin", "destination"])
+    for row in rows:
+        odPairs.append(
+            ODPair(
+                origin=row.get("origin", "").strip(),
+                destination=row.get("destination", "").strip(),
             )
+        )
     logger.info(f"从 {filePath} 读取 {len(odPairs)} 个OD对")
     return odPairs
 
@@ -87,11 +90,11 @@ def main():
     parser.add_argument(
         "--od-list",
         nargs="+",
-        default=["378,152"],
+        default=["378,152", "176,146"],
         help='OD对列表，格式: "origin,destination" 或 origin destination（可多个）',
     )
     parser.add_argument(
-        "--od-file", help="OD对CSV文件路径，格式: origin,destination"
+        "--od-file", help="OD对文件路径（支持 CSV 和 xlsx）"
     )
     parser.add_argument(
         "--start-date", default="2026-03-01", required=False, help="开始日期 (YYYY-MM-DD)"
@@ -107,7 +110,7 @@ def main():
     parser.add_argument(
         "--base-table",
         default="research/analysis/基础表.xlsx",
-        help="基础表CSV路径",
+        help="基础表路径（支持 CSV 和 xlsx）",
     )
     parser.add_argument(
         "--section-version",

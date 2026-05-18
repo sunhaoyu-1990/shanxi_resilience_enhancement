@@ -39,7 +39,7 @@ class LostVehicleParams(BaseModel):
     endDate: str = Field(..., description="结束日期 YYYY-MM-DD")
     dataDir: str = Field(default="/home/shy/gaosu_data", description="日表数据根目录")
     baseTablePath: str = Field(
-        default="research/analysis/基础表.csv", description="基础表CSV路径"
+        default="research/analysis/基础表.xlsx", description="基础表路径（支持 CSV 和 xlsx）"
     )
     sectionVersion: str = Field(
         default="202401", description="section_number 映射版本"
@@ -68,7 +68,7 @@ class DetourSectionParams(BaseModel):
 
     odFlowList: list[ODFlowPair] = Field(..., description="带流量的OD对列表")
     baseTablePath: str = Field(
-        default="research/analysis/基础表.csv", description="基础表CSV路径"
+        default="research/analysis/基础表.xlsx", description="基础表路径（支持 CSV 和 xlsx）"
     )
     outputPath: str = Field(
         default="outputs/m7/detour_sections.csv", description="输出CSV路径"

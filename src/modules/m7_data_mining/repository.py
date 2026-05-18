@@ -11,7 +11,7 @@ from typing import Optional
 
 from src.app.logger import get_logger, LoggerMixin
 from src.common.sql_runner import get_sql_runner, SqlRunner
-from src.modules.m3_impact_analysis.affected_od_service import get_nearest_version
+from src.common.version_utils import get_nearest_version
 
 logger = get_logger(__name__)
 
@@ -284,14 +284,14 @@ class M7Repository(LoggerMixin):
         from src.common.file_loader import load_tabular
 
         result: dict[str, set[tuple[str, str]]] = {k: set() for k in odnum_to_pair}
-        columns = ["enid", "exid", "numpath", "is_affected", "same_period_2025_flow"]
+        columns = ["OD_num", "enid", "exid", "numpath", "is_affected", "same_period_2025_flow"]
         rows = load_tabular(baseTablePath, columns=columns)
 
         matched = 0
         for row in rows:
             if row.get("is_affected", "") != "True" and row.get("same_period_2025_flow", "0") == "0":
                 continue
-            transformed = self._transform_numpath(row.get("numpath", ""))
+            transformed = self._transform_numpath(row.get("OD_num", ""))
             if transformed in odnumSet:
                 key = (row["enid"], row["exid"])
                 result[transformed].add(key)

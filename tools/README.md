@@ -267,3 +267,136 @@ OD: S0030610010030 → G0070610020010  (共 1,234 条)
 1. 使用每日拆分文件（`YYYYMM/data_YYYYMMDD.csv`），而非月度大文件，按日期范围精确扫描
 2. 跨月日期范围自动支持（如 `20260225-20260305` 会扫描 202602 和 202603 两个目录）
 3. 逐行扫描，不加载全量到内存，每个文件约 600MB 需数十秒
+
+---
+
+## query_path_fee.py — 路径费额批量查询
+
+### 功能
+
+批量查询路径在所有车型下的通行费、交控费额、里程、交控里程。输入一个 CSV 文件（每行一个 `|` 分隔的收费单元路径字符串或单个收费单元 ID），输出每条路径 × 10 种车型的费额明细。
+
+### 用法
+
+```bash
+uv run python tools/query_path_fee.py --fee-version <版本号>
+
+# 指定输入输出
+uv run python tools/query_path_fee.py --input tools/data/path.csv --fee-version 202603 -o result.csv
+```
+
+### 参数说明
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--fee-version` | 是 | 费率版本，对应 `dwd_section_path` 的 `version_yyyyMM`，如 `202603` |
+| `--input` | 否 | 输入 CSV 路径，每行一个路径字符串，默认 `tools/data/path.csv` |
+| `-o, --output` | 否 | 输出 CSV 路径，默认 `outputs/tmp/path_fee_result_{fee_version}.csv` |
+
+### 车型范围
+
+| 车型名称 | vehicle_type |
+|---------|-------------|
+| 客车1型 | 1 |
+| 客车2型 | 2 |
+| 客车3型 | 3 |
+| 客车4型 | 4 |
+| 货车1型 | 11 |
+| 货车2型 | 12 |
+| 货车3型 | 13 |
+| 货车4型 | 14 |
+| 货车5型 | 15 |
+| 货车6型 | 16 |
+
+### 输出格式
+
+CSV 文件，UTF-8 编码，逗号分隔，首行为表头：
+
+```
+path,vehicle_type,vehicle_type_name,fee_yuan,control_fee_yuan,length_km,control_length_km,section_count,skipped_count
+G065W61001000110|G065W61001000210|...,1,客车1型,58.74,58.74,97.893,97.893,6,0
+```
+
+| 列名 | 说明 |
+|------|------|
+| `path` | 原始路径字符串 |
+| `vehicle_type` | 车型编码 |
+| `vehicle_type_name` | 车型名称 |
+| `fee_yuan` | 通行费（元） |
+| `control_fee_yuan` | 交控费额（还贷性路段，元） |
+| `length_km` | 总里程（公里） |
+| `control_length_km` | 交控里程（公里） |
+| `section_count` | 收费单元数量 |
+| `skipped_count` | 跳过的单元数量（roadtype 3/4 或查无数据） |
+
+### 依赖
+
+- 数据库：查询 `dwd_section_path`（收费单元信息）、`dim_road_vehicle_fee_map`（费率）、`dim_toll_road`（路段性质）
+- 项目模块：`src/common/toll_calculator.py`（TollCalculator）
+
+---
+
+## vehicle_treat_analyse.py — 车辆行为挖掘
+
+### 功能
+
+根据车辆信息，从每日通行数据中提取指定车辆的所有通行记录，并与"附近上下站车辆明细"和"中途上下站车辆明细"进行比对打标，输出合并 CSV。
+
+### 用法
+
+```bash
+uv run python tools/vehicle_treat_analyse.py \
+  --start-date 2026-03-01 \
+  --end-date 2026-03-31 \
+  --output tools/data/vehicle_treat_analyse/output.csv
+```
+
+### 参数说明
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--start-date` | 是 | 开始日期，格式 YYYY-MM-DD |
+| `--end-date` | 是 | 结束日期，格式 YYYY-MM-DD |
+| `--output` | 否 | 输出 CSV 路径，默认 `tools/data/vehicle_treat_analyse/output.csv` |
+
+### 输入数据
+
+所有输入文件位于 `tools/data/vehicle_treat_analyse/`：
+
+| 文件 | 说明 | 格式 |
+|------|------|------|
+| `vehicle_info.csv` | 待分析车辆清单 | 无表头，每行一个 `vehicle_id` 或 `vehicle_id,vehicle_type` |
+| `附近上下站车辆明细.csv` | 附近上下站匹配源 | 含 `record_enid`/`record_exid`，无时间字段 |
+| `中途上下站车辆明细.csv` | 中途上下站匹配源 | 含 `trip1_*`/`trip2_*` 时间字段 |
+
+通行数据位于 `/home/shy/gaosu_data/YYYYMM/data_YYYYMMDD.csv`，按 `--start-date`/`--end-date` 自动定位。
+
+### 匹配规则
+
+| 匹配来源 | 匹配条件 | 标签 |
+|---------|---------|------|
+| 附近上下站 | vehicle_id + enid + exid | `附近上下站` |
+| 中途上下站-前段 | vehicle_id + enid + exid + entime + extime | `中途上下站-前段` |
+| 中途上下站-后段 | vehicle_id + enid + exid + entime + extime | `中途上下站-后段` |
+
+- 车辆匹配：优先 `exvehicleid`，为空时用 `envehicleid`
+- 一条记录可匹配多个来源，以逗号分隔
+- 无匹配则 `match_source` 为空
+
+### 输出格式
+
+CSV 文件，UTF-8 编码，逗号分隔：
+
+```
+vehicle_id,vehicle_type,passid,enid,exid,entime,extime,intervalgroup,match_source
+陕HU8051_0,11,0161012018...,G0070610010060,G0070610020020,2026-03-01 15:21:37,...,附近上下站
+陕UEP631_0,1,...,...,...,...,...,附近上下站,中途上下站-前段
+```
+
+### 数据量参考
+
+| 日期范围 | 扫描数据量 | 预估耗时 |
+|---------|-----------|---------|
+| 单日 | ~120 万行 | ~10 秒 |
+| 1 周 | ~840 万行 | ~1 分钟 |
+| 1 月 | ~3600 万行 | ~5 分钟 |
