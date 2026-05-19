@@ -74,3 +74,29 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+
+# Large research files (Git LFS candidates)
+outputs/m7/
+outputs/gstx_exit*.csv
+outputs/*.csv
+research/analysis/
+research/施工追踪分析/
+research/西部OD统计数据库/
+research/追踪分析/
+research/分析/
+tools/data/
+tools/~$*
+*.ipynb_checkpoints
+
+# Large research files
+outputs/m7/
+outputs/gstx_exit*.csv
+outputs/*.csv
+research/analysis/
+research/施工追踪分析/
+research/西部OD统计数据库/
+research/追踪分析/
+research/分析/
+tools/data/
+tools/~$*
+*.ipynb_checkpoints
