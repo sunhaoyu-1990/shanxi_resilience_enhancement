@@ -32,12 +32,12 @@ from src.modules.m3_impact_analysis.analysis_schema import (
 )
 from src.modules.m3_impact_analysis.mid_trip_exit_service import (
     _parse_date,
-    _to_2025_same_period,
     _get_day_files,
     _load_od_pairs_from_csv,
     _load_od_pairs_from_string,
     get_nearest_version,
 )
+from src.common.time_utils import to_same_period
 from src.modules.m2_od_flow.csv_reader import iter_csv_batches
 from src.common.toll_calculator import calculate_toll_fee
 
@@ -47,19 +47,16 @@ OUTPUT_DIR = "analysis_results"
 
 
 def _resolve_vehicle_type(record: dict) -> str:
-    """车型取值：feevehicletype 非空则用，否则 envehicletype，都空返回 '0'"""
-    fee = record.get("feevehicletype", "").strip()
-    if fee:
-        return fee
-    en = record.get("envehicletype", "").strip()
-    if en:
-        return en
+    """车型取值：new_vehicletype 非空则用，为空返回 '0'"""
+    vt = record.get("new_vehicletype", "").strip()
+    if vt:
+        return vt
     return "0"
 
 # CSV 需提取的列
 DETOUR_COLUMNS = [
     "exvehicleid", "enid", "exid", "intervalgroup",
-    "feevehicletype", "envehicletype",
+    "new_vehicletype",
 ]
 
 # CSV 输出列
@@ -77,6 +74,7 @@ DETOUR_FLOW_STAT_CSV_COLUMNS = [
     "construction_flow", "same_period_2025_flow",
     "loss_fee_yuan", "control_loss_fee_yuan",
     "sp2025_loss_fee_yuan", "sp2025_control_loss_fee_yuan",
+    "section_od",
 ]
 
 
@@ -247,12 +245,12 @@ def _check_and_write_record(
     period: str,
     vehicle_type: str,
     construction_flow_agg: dict[tuple[str, str, str, str, str, str], int],
-    sp2025_flow_agg: dict[tuple[str, str, str, str, str, str], int],
+    sp_flow_agg: dict[tuple[str, str, str, str, str, str], int],
     fee_version: str,
     construction_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = None,
-    sp2025_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = None,
+    sp_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = None,
     construction_control_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = None,
-    sp2025_control_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = None,
+    sp_control_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = None,
 ) -> tuple[int, int]:
     """
     检查单条记录是否为绕行记录，匹配则即时写入CSV并累加流量统计和通行费
@@ -342,12 +340,12 @@ def _check_and_write_record(
                 if construction_control_loss_fee_agg is not None and control_loss_fee is not None:
                     construction_control_loss_fee_agg[agg_key] += control_loss_fee
             else:
-                if sp2025_flow_agg is not None:
-                    sp2025_flow_agg[agg_key] += 1
-                if sp2025_loss_fee_agg is not None and loss_fee is not None:
-                    sp2025_loss_fee_agg[agg_key] += loss_fee
-                if sp2025_control_loss_fee_agg is not None and control_loss_fee is not None:
-                    sp2025_control_loss_fee_agg[agg_key] += control_loss_fee
+                if sp_flow_agg is not None:
+                    sp_flow_agg[agg_key] += 1
+                if sp_loss_fee_agg is not None and loss_fee is not None:
+                    sp_loss_fee_agg[agg_key] += loss_fee
+                if sp_control_loss_fee_agg is not None and control_loss_fee is not None:
+                    sp_control_loss_fee_agg[agg_key] += control_loss_fee
 
     # "找O判定D"：enid=O，exid≠D，查 exid→D 路径
     if recordEnid in find_o_judge_d:
@@ -421,23 +419,23 @@ def _check_and_write_record(
                 if construction_control_loss_fee_agg is not None and control_loss_fee is not None:
                     construction_control_loss_fee_agg[agg_key] += control_loss_fee
             else:
-                if sp2025_flow_agg is not None:
-                    sp2025_flow_agg[agg_key] += 1
-                if sp2025_loss_fee_agg is not None and loss_fee is not None:
-                    sp2025_loss_fee_agg[agg_key] += loss_fee
-                if sp2025_control_loss_fee_agg is not None and control_loss_fee is not None:
-                    sp2025_control_loss_fee_agg[agg_key] += control_loss_fee
+                if sp_flow_agg is not None:
+                    sp_flow_agg[agg_key] += 1
+                if sp_loss_fee_agg is not None and loss_fee is not None:
+                    sp_loss_fee_agg[agg_key] += loss_fee
+                if sp_control_loss_fee_agg is not None and control_loss_fee is not None:
+                    sp_control_loss_fee_agg[agg_key] += control_loss_fee
 
     return sameDestCount, sameOriginCount
 
 
 def _average_flow_by_od_count(
     construction_flow_agg: dict[tuple[str, str, str, str, str, str], int],
-    sp2025_flow_agg: dict[tuple[str, str, str, str, str, str], int],
+    sp_flow_agg: dict[tuple[str, str, str, str, str, str], int],
     construction_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float],
-    sp2025_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float],
+    sp_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float],
     construction_control_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float],
-    sp2025_control_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float],
+    sp_control_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float],
 ) -> tuple[
     dict[tuple[str, str, str, str, str, str], float],
     dict[tuple[str, str, str, str, str, str], float],
@@ -457,11 +455,11 @@ def _average_flow_by_od_count(
     """
     all_keys = (
         set(construction_flow_agg.keys())
-        | set(sp2025_flow_agg.keys())
+        | set(sp_flow_agg.keys())
         | set(construction_loss_fee_agg.keys())
-        | set(sp2025_loss_fee_agg.keys())
+        | set(sp_loss_fee_agg.keys())
         | set(construction_control_loss_fee_agg.keys())
-        | set(sp2025_control_loss_fee_agg.keys())
+        | set(sp_control_loss_fee_agg.keys())
     )
 
     # 统计每个 (rec_enid, rec_exid, record_type, vehicle_type) 映射到多少个不同的 (od_enid, od_exid)
@@ -480,11 +478,11 @@ def _average_flow_by_od_count(
 
     return (
         _divided(construction_flow_agg),
-        _divided(sp2025_flow_agg),
+        _divided(sp_flow_agg),
         _divided(construction_loss_fee_agg),
-        _divided(sp2025_loss_fee_agg),
+        _divided(sp_loss_fee_agg),
         _divided(construction_control_loss_fee_agg),
-        _divided(sp2025_control_loss_fee_agg),
+        _divided(sp_control_loss_fee_agg),
     )
 
 
@@ -572,8 +570,8 @@ class DetourRecordService(LoggerMixin):
             # 确定日期范围
             startDate = _parse_date(params.startDate)
             endDate = _parse_date(params.endDate)
-            sp2025_start = _to_2025_same_period(startDate)
-            sp2025_end = _to_2025_same_period(endDate)
+            sp_start = to_same_period(startDate, params.samePeriodYear)
+            sp_end = to_same_period(endDate, params.samePeriodYear)
 
             # 输出文件
             os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -583,13 +581,13 @@ class DetourRecordService(LoggerMixin):
 
             # 流量统计聚合字典（双期间分别累加）
             construction_flow_agg: dict[tuple[str, str, str, str, str, str], int] = defaultdict(int)
-            sp2025_flow_agg: dict[tuple[str, str, str, str, str, str], int] = defaultdict(int)
+            sp_flow_agg: dict[tuple[str, str, str, str, str, str], int] = defaultdict(int)
 
             # 通行费聚合字典（双期间分别累加）
             construction_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = defaultdict(float)
-            sp2025_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = defaultdict(float)
+            sp_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = defaultdict(float)
             construction_control_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = defaultdict(float)
-            sp2025_control_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = defaultdict(float)
+            sp_control_loss_fee_agg: dict[tuple[str, str, str, str, str, str], float] = defaultdict(float)
 
             total_scanned = 0
             total_prefiltered = 0
@@ -605,7 +603,7 @@ class DetourRecordService(LoggerMixin):
                 # 处理两个期间
                 periods = [
                     ("construction", startDate, endDate),
-                    ("same_period_2025", sp2025_start, sp2025_end),
+                    (f"same_period_{params.samePeriodYear}", sp_start, sp_end),
                 ]
 
                 for period_label, period_start, period_end in periods:
@@ -655,12 +653,12 @@ class DetourRecordService(LoggerMixin):
                                     period=period_label,
                                     vehicle_type=vehicle_type,
                                     construction_flow_agg=construction_flow_agg,
-                                    sp2025_flow_agg=sp2025_flow_agg,
+                                    sp_flow_agg=sp_flow_agg,
                                     fee_version=fee_version,
                                     construction_loss_fee_agg=construction_loss_fee_agg,
-                                    sp2025_loss_fee_agg=sp2025_loss_fee_agg,
+                                    sp_loss_fee_agg=sp_loss_fee_agg,
                                     construction_control_loss_fee_agg=construction_control_loss_fee_agg,
-                                    sp2025_control_loss_fee_agg=sp2025_control_loss_fee_agg,
+                                    sp_control_loss_fee_agg=sp_control_loss_fee_agg,
                                 )
                                 day_same_dest += sameDestCount
                                 day_same_origin += sameOriginCount
@@ -692,24 +690,24 @@ class DetourRecordService(LoggerMixin):
             # ====== 流量均分：同一 (rec_enid, rec_exid) 对应多个 OD 对时均分流量和费用 ======
             (
                 construction_flow_avg,
-                sp2025_flow_avg,
+                sp_flow_avg,
                 construction_loss_fee_avg,
-                sp2025_loss_fee_avg,
+                sp_loss_fee_avg,
                 construction_control_loss_fee_avg,
-                sp2025_control_loss_fee_avg,
+                sp_control_loss_fee_avg,
             ) = _average_flow_by_od_count(
                 construction_flow_agg,
-                sp2025_flow_agg,
+                sp_flow_agg,
                 construction_loss_fee_agg,
-                sp2025_loss_fee_agg,
+                sp_loss_fee_agg,
                 construction_control_loss_fee_agg,
-                sp2025_control_loss_fee_agg,
+                sp_control_loss_fee_agg,
             )
             logger.info("流量均分完成")
 
             # ====== 流量统计汇总 ======
             flow_stat_path: Optional[str] = None
-            all_keys = set(construction_flow_avg.keys()) | set(sp2025_flow_avg.keys())
+            all_keys = set(construction_flow_avg.keys()) | set(sp_flow_avg.keys())
             result_data = []
             if all_keys:
                 logger.info("开始生成流量统计汇总...")
@@ -728,11 +726,11 @@ class DetourRecordService(LoggerMixin):
                             record_type=record_type,
                             vehicle_type=vtype,
                             construction_flow=construction_flow_avg.get(key, 0.0),
-                            same_period_2025_flow=sp2025_flow_avg.get(key, 0.0),
+                            same_period_2025_flow=sp_flow_avg.get(key, 0.0),
                             loss_fee_yuan=construction_loss_fee_avg.get(key, 0.0) if construction_loss_fee_avg else None,
                             control_loss_fee_yuan=construction_control_loss_fee_avg.get(key, 0.0) if construction_control_loss_fee_avg else None,
-                            sp2025_loss_fee_yuan=sp2025_loss_fee_avg.get(key, 0.0) if sp2025_loss_fee_avg else None,
-                            sp2025_control_loss_fee_yuan=sp2025_control_loss_fee_avg.get(key, 0.0) if sp2025_control_loss_fee_avg else None,
+                            sp2025_loss_fee_yuan=sp_loss_fee_avg.get(key, 0.0) if sp_loss_fee_avg else None,
+                            sp2025_control_loss_fee_yuan=sp_control_loss_fee_avg.get(key, 0.0) if sp_control_loss_fee_avg else None,
                         )
                         stat_writer.writerow(stat_record.model_dump())
                         result_data.append(stat_record)

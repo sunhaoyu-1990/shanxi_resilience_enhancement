@@ -39,7 +39,12 @@ from src.common.section_od_matcher import SectionOdMatcher
 from src.modules.m3_impact_analysis.affected_od_service import AFFECTED_OD_CSV_COLUMNS
 from src.modules.m3_impact_analysis.mid_trip_exit_service import MID_TRIP_FLOW_STAT_CSV_COLUMNS
 from src.modules.m3_impact_analysis.detour_record_service import DETOUR_FLOW_STAT_CSV_COLUMNS
-from src.modules.m3_impact_analysis.impact_summary_service import IMPACT_SUMMARY_CSV_COLUMNS
+from src.modules.m3_impact_analysis.impact_summary_service import (
+    IMPACT_SUMMARY_CSV_COLUMNS,
+    ODS_SUMMARY_CSV_COLUMNS,
+    SECTION_SUMMARY_CSV_COLUMNS,
+    _CSV_COLUMN_ALIASES,
+)
 
 
 def main():
@@ -90,10 +95,33 @@ def main():
     )
     parser.add_argument(
         "--output-summary", default=None,
-        help="综合汇总输出CSV路径 (默认自动生成)",
+        help="汇总基础表输出CSV路径 (默认自动生成)",
+    )
+    parser.add_argument(
+        "--output-ods-summary", default=None,
+        help="OD汇总表输出CSV路径 (默认自动生成)",
+    )
+    parser.add_argument(
+        "--output-section-summary", default=None,
+        help="路段汇总表输出CSV路径 (默认自动生成)",
+    )
+    parser.add_argument(
+        "--skip-loss-analysis", action="store_true",
+        help="跳过步骤6（流失车辆分析）",
+    )
+    parser.add_argument(
+        "--skip-vehicle-query", action="store_true",
+        help="跳过步骤7（高频车辆查询）",
+    )
+    parser.add_argument(
+        "--same-period-year", type=int, default=2025,
+        help="同期参考年份 (默认: 2025)",
     )
 
     args = parser.parse_args()
+
+    # 路段级别OD匹配器（全流程共享，缓存跨流程复用）
+    section_od_matcher = SectionOdMatcher()
 
     # ============================================================
     # 流程1：受影响OD-Path流量查询
@@ -108,6 +136,7 @@ def main():
         endDate=args.end_date,
         minAffectedPathFlow=args.min_affected_path_flow,
         minFlow=args.min_flow,
+        samePeriodYear=args.same_period_year,
     )
 
     service1 = AffectedOdService()
@@ -124,6 +153,17 @@ def main():
     if result1.status != "success":
         print("\n流程1失败，终止后续流程")
         sys.exit(1)
+
+    # 流程1后处理：添加 section_od 并重写 CSV
+    print("添加路段级别OD (section_od)...")
+    section_od_matcher.enrich_records(
+        raw_records, "enid", "exid",
+        dataDate=args.start_date,
+        dataDateGetter=lambda r: r.map_version + "01",
+    )
+    section_od_matcher.rewrite_csv_with_section_od(
+        result1.outputCsvPath, raw_records, AFFECTED_OD_CSV_COLUMNS,
+    )
 
     if not result1.filteredOdPairs:
         print("\n过滤后无OD对，无需执行后续流程")
@@ -144,6 +184,7 @@ def main():
         dataDir=args.data_dir,
         maxSections=args.max_sections,
         maxConstructionSections=args.max_construction_sections,
+        samePeriodYear=args.same_period_year,
     )
 
     service3 = DetourRecordService()
@@ -163,6 +204,15 @@ def main():
         print("\n流程3失败，终止流程2")
         sys.exit(1)
 
+    # 流程3后处理：添加 section_od 并重写 flow_stat CSV
+    print("添加路段级别OD (section_od)...")
+    section_od_matcher.enrich_records(
+        result3_data, "od_enid", "od_exid", dataDate=args.start_date,
+    )
+    section_od_matcher.rewrite_csv_with_section_od(
+        result3.flowStatCsvPath, result3_data, DETOUR_FLOW_STAT_CSV_COLUMNS,
+    )
+
     # ============================================================
     # 流程2：中途下站检测
     # ============================================================
@@ -176,6 +226,7 @@ def main():
         startDate=args.start_date,
         endDate=args.end_date,
         dataDir=args.data_dir,
+        samePeriodYear=args.same_period_year,
     )
 
     service2 = MidTripExitService()
@@ -189,22 +240,110 @@ def main():
     print(f"输出文件: {result2.outputCsvPath}")
     print(f"耗时: {result2.executionTime:.2f}s")
 
+    # 流程2后处理：添加 section_od 并重写 flow_stat CSV
+    print("添加路段级别OD (section_od)...")
+    section_od_matcher.enrich_records(
+        result2_data, "od_enid", "od_exid", dataDate=args.start_date,
+    )
+    section_od_matcher.rewrite_csv_with_section_od(
+        result2.flowStatCsvPath, result2_data, MID_TRIP_FLOW_STAT_CSV_COLUMNS,
+    )
+
     # ============================================================
-    # 综合汇总：流程1+2+3 数据合并
+    # 综合汇总：流程1+2+3 数据合并（步骤1-5）
     # ============================================================
     print("\n" + "=" * 60)
-    print("综合汇总：流程1+2+3 数据合并")
+    print("综合汇总：流程1+2+3 数据合并（动态测算）")
     print("=" * 60)
 
+    # 确定输出路径
+    summary_output_path = args.output_summary
+    import os
+    import time
+    os.makedirs("analysis_results", exist_ok=True)
+    if summary_output_path is None:
+        summary_output_path = os.path.join(
+            "analysis_results", f"impact_summary_{time.strftime('%Y%m%d_%H%M%S')}.csv"
+        )
+    ods_output_path = args.output_ods_summary
+    if ods_output_path is None:
+        ods_output_path = os.path.join(
+            "analysis_results", f"ods_summary_{time.strftime('%Y%m%d_%H%M%S')}.csv"
+        )
+    section_output_path = args.output_section_summary
+    if section_output_path is None:
+        section_output_path = os.path.join(
+            "analysis_results", f"section_summary_{time.strftime('%Y%m%d_%H%M%S')}.csv"
+        )
+
     summary_service = ImpactSummaryService()
-    summary_records = summary_service.run(
+    summary_records, ods_records, section_records = summary_service.run(
         raw_records=raw_records,
         mid_data=result2_data,
         detour_data=result3_data,
-        output_path=args.output_summary,
+        output_path=summary_output_path,
+        ods_output_path=ods_output_path,
+        section_output_path=section_output_path,
     )
 
-    print(f"综合汇总记录数: {len(summary_records)}")
+    print(f"汇总基础表记录数: {len(summary_records)}")
+    print(f"OD汇总表记录数: {len(ods_records)}")
+    print(f"路段汇总表记录数: {len(section_records)}")
+
+    # 综合汇总后处理：添加 section_od 并重写 CSV
+    print("添加路段级别OD (section_od)...")
+    section_od_matcher.enrich_records(
+        summary_records, "enid", "exid", dataDate=args.start_date,
+    )
+    section_od_matcher.rewrite_csv_with_section_od(
+        summary_output_path, summary_records, IMPACT_SUMMARY_CSV_COLUMNS,
+        aliases=_CSV_COLUMN_ALIASES,
+    )
+
+    # ============================================================
+    # 步骤6：流失车辆分析
+    # ============================================================
+    if not args.skip_loss_analysis:
+        print("\n" + "=" * 60)
+        print("步骤6：流失车辆分析")
+        print("=" * 60)
+
+        from src.modules.m3_impact_analysis.flow_loss_analysis import FlowLossAnalysisService
+
+        loss_analysis = FlowLossAnalysisService(section_od_matcher=section_od_matcher)
+        loss_results = loss_analysis.run(
+            summary_records=summary_records,
+            section_records=section_records,
+            output_dir=os.path.join("analysis_results", "flow_loss_analysis"),
+            dataDate=args.start_date,
+        )
+        print(f"TOP15 流失路段数: {loss_results['top15_count']}")
+
+        # ============================================================
+        # 步骤7：高频车辆查询
+        # ============================================================
+        if not args.skip_vehicle_query and loss_results["top15_od_pairs"]:
+            print("\n" + "=" * 60)
+            print("步骤7：高频车辆查询（TOP15 流失OD）")
+            print("=" * 60)
+
+            from src.modules.m3_impact_analysis.vehicle_query_service import VehicleQueryService
+
+            vehicle_query = VehicleQueryService()
+            top_od_pairs = loss_results["top15_od_pairs"]
+            print(f"查询 {len(top_od_pairs)} 个 OD 对...")
+            vehicle_results = vehicle_query.run(
+                top_od_pairs=top_od_pairs,
+                start_date=args.start_date,
+                end_date=args.end_date,
+                data_dir=args.data_dir,
+                output_dir=os.path.join("analysis_results", "vehicle_query"),
+                od_mapping=loss_results.get("od_mapping"),
+                od_pair_to_section_od=loss_results.get("od_pair_to_section_od"),
+            )
+            print(f"车辆查询完成: {len(vehicle_results)} 个输出文件")
+    else:
+        print("\n跳过步骤6（流失分析）和步骤7（车辆查询）")
 
     sys.exit(0 if result2.status == "success" else 1)
 

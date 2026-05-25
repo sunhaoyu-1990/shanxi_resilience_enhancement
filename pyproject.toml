@@ -41,6 +41,7 @@ dependencies = [
   "openpyxl>=3.1.5",
   "xlrd>=2.0.2",
   "tqdm>=4.67.3",
+  "matplotlib>=3.7.0",
 ]
 
 [project.optional-dependencies]
@@ -63,6 +64,9 @@ run-m2 = "src.jobs.run_m2:main"
 run-m3 = "src.jobs.run_m3:main"
 run-m4 = "src.jobs.run_m4:main"
 run-m5 = "src.jobs.run_m5:main"
+run-m6 = "src.jobs.run_m6_batch:main"
+run-m7-lost-vehicle = "src.jobs.run_m7_lost_vehicle:main"
+run-m8-path-repair = "src.jobs.run_m8_path_repair:main"
 run-pipeline = "src.jobs.run_pipeline:main"
 run-query-api = "src.services.query_api.main:main"
 

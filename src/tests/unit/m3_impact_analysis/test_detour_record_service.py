@@ -188,26 +188,20 @@ class TestDetourRecordResult:
 class TestResolveVehicleType:
     """车型解析"""
 
-    def test_feevehicletype_non_empty(self):
-        assert _resolve_vehicle_type({"feevehicletype": "1", "envehicletype": "2"}) == "1"
+    def test_new_vehicletype_non_empty(self):
+        assert _resolve_vehicle_type({"new_vehicletype": "1"}) == "1"
 
-    def test_feevehicletype_empty_envehicletype_non_empty(self):
-        assert _resolve_vehicle_type({"feevehicletype": "", "envehicletype": "2"}) == "2"
+    def test_new_vehicletype_whitespace(self):
+        assert _resolve_vehicle_type({"new_vehicletype": "  "}) == "0"
 
-    def test_feevehicletype_whitespace_envehicletype_non_empty(self):
-        assert _resolve_vehicle_type({"feevehicletype": "  ", "envehicletype": "3"}) == "3"
+    def test_new_vehicletype_empty(self):
+        assert _resolve_vehicle_type({"new_vehicletype": ""}) == "0"
 
-    def test_both_empty(self):
-        assert _resolve_vehicle_type({"feevehicletype": "", "envehicletype": ""}) == "0"
-
-    def test_both_missing(self):
+    def test_missing_key(self):
         assert _resolve_vehicle_type({}) == "0"
 
-    def test_feevehicletype_only(self):
-        assert _resolve_vehicle_type({"feevehicletype": "4"}) == "4"
-
-    def test_envehicletype_only(self):
-        assert _resolve_vehicle_type({"envehicletype": "5"}) == "5"
+    def test_whitespace_stripped(self):
+        assert _resolve_vehicle_type({"new_vehicletype": "  4  "}) == "4"
 
 
 # ============================================================
@@ -1059,7 +1053,7 @@ class TestDetourRecordServiceRun:
         mock_iter_csv.return_value = [[
             {
                 "exvehicleid": "V1", "enid": "EN_OTHER", "exid": "D1",
-                "intervalgroup": "p1", "feevehicletype": "1", "envehicletype": "2",
+                "intervalgroup": "p1", "new_vehicletype": "1",
             },
         ]]
 
@@ -1203,9 +1197,8 @@ class TestColumnDefinitions:
     """列定义测试"""
 
     def test_detour_columns_includes_vehicle_type_fields(self):
-        """DETOUR_COLUMNS 包含 feevehicletype 和 envehicletype"""
-        assert "feevehicletype" in DETOUR_COLUMNS
-        assert "envehicletype" in DETOUR_COLUMNS
+        """DETOUR_COLUMNS 包含 new_vehicletype"""
+        assert "new_vehicletype" in DETOUR_COLUMNS
 
     def test_output_columns_includes_vehicle_type(self):
         """DETOUR_OUTPUT_CSV_COLUMNS 包含 vehicle_type"""

@@ -25,6 +25,7 @@ from src.modules.m3_impact_analysis.analysis_schema import (
     AffectedOdQueryResult,
 )
 from src.common.toll_calculator import calculate_toll_fee
+from src.common.time_utils import to_same_period
 
 logger = get_logger(__name__)
 
@@ -36,20 +37,13 @@ AFFECTED_OD_CSV_COLUMNS = [
     "fixed_intervalpath", "affected_section_ids", "is_affected", "map_version",
     "vehicle_type", "construction_flow", "same_period_2025_flow",
     "fee_yuan", "total_length_meters", "control_fee_yuan", "control_length_meters",
+    "section_od",
 ]
 
 
 def _parse_date(dateStr: str) -> date:
     """解析 YYYYMMDD 格式日期"""
     return date(int(dateStr[:4]), int(dateStr[4:6]), int(dateStr[6:8]))
-
-
-def _to_2025_same_period(d: date) -> date:
-    """将日期映射到2025同期（处理2月29日等边界）"""
-    try:
-        return d.replace(year=2025)
-    except ValueError:
-        return date(2025, 3, 1) - timedelta(days=1)
 
 
 def _get_month_from_date(date_str: str) -> str:
@@ -291,9 +285,9 @@ class AffectedOdService(LoggerMixin):
             logger.info(f"查询受影响OD-Path: 施工段={section_id_list}, 时间={params.startDate}~{params.endDate}")
 
             construction_months = _get_month_list(startDate, endDate)
-            sp2025_start = _to_2025_same_period(startDate)
-            sp2025_end = _to_2025_same_period(endDate)
-            sp2025_months = _get_month_list(sp2025_start, sp2025_end)
+            sp_start = to_same_period(startDate, params.samePeriodYear)
+            sp_end = to_same_period(endDate, params.samePeriodYear)
+            sp_months = _get_month_list(sp_start, sp_end)
 
             # Step 1-2: 查找受影响OD-Path
             affected_rows = self.repository.find_affected_od_paths(section_id_list)
@@ -366,31 +360,30 @@ class AffectedOdService(LoggerMixin):
 
             logger.info(f"施工期间流量查到 {len(constr_flow_results)} 条(path,vtype)记录, 车型: {sorted(constr_vtypes)}")
 
-            # Step 8: 查询2025同期流量（按车型拆分）
-            sp2025_start_ts = sp2025_start.strftime("%Y-%m-%d 00:00:00")
-            sp2025_end_ts = (sp2025_end + timedelta(days=1)).strftime("%Y-%m-%d 00:00:00")
+            sp_start_ts = sp_start.strftime("%Y-%m-%d 00:00:00")
+            sp_end_ts = (sp_end + timedelta(days=1)).strftime("%Y-%m-%d 00:00:00")
 
-            same_period_2025_available = True
-            sp2025_daily_tables = self.repository.list_available_dws_daily_tables(sp2025_start, sp2025_end)
+            same_period_available = True
+            sp_daily_tables = self.repository.list_available_dws_daily_tables(sp_start, sp_end)
 
-            if sp2025_daily_tables:
-                logger.info(f"使用 {len(sp2025_daily_tables)} 个日表查询2025同期流量（按车型）")
-                sp2025_flow_results, sp2025_vtypes = _query_daily_flow_by_vtype(
-                    self.repository, section_to_path_ids, sp2025_daily_tables, sp2025_start, sp2025_end
+            if sp_daily_tables:
+                logger.info(f"使用 {len(sp_daily_tables)} 个日表查询同期流量（按车型）")
+                sp_flow_results, sp_vtypes = _query_daily_flow_by_vtype(
+                    self.repository, section_to_path_ids, sp_daily_tables, sp_start, sp_end
                 )
             else:
-                sp2025_flow_results, sp2025_vtypes, table_exists = _query_monthly_flow_by_vtype(
-                    self.repository, section_to_path_ids, sp2025_months, sp2025_start_ts, sp2025_end_ts
+                sp_flow_results, sp_vtypes, table_exists = _query_monthly_flow_by_vtype(
+                    self.repository, section_to_path_ids, sp_months, sp_start_ts, sp_end_ts
                 )
                 if not table_exists:
-                    same_period_2025_available = False
-                    warnings.append("2025同期流量表不存在")
+                    same_period_available = False
+                    warnings.append("同期流量表不存在")
 
-            logger.info(f"2025同期流量查到 {len(sp2025_flow_results)} 条(path,vtype)记录, 车型: {sorted(sp2025_vtypes)}")
+            logger.info(f"同期流量查到 {len(sp_flow_results)} 条(path,vtype)记录, 车型: {sorted(sp_vtypes)}")
 
             # Step 9: 扩展每条路径为每种车型一条记录
             # 收集所有出现的车型
-            all_vehicle_types = constr_vtypes | sp2025_vtypes
+            all_vehicle_types = constr_vtypes | sp_vtypes
             if not all_vehicle_types:
                 all_vehicle_types = {"0"}
 
@@ -403,8 +396,8 @@ class AffectedOdService(LoggerMixin):
                 row = path_id_to_row[path_id]
                 for vtype in all_vehicle_types:
                     constr_flow = constr_flow_results.get((path_id, vtype), 0)
-                    sp2025_flow = sp2025_flow_results.get((path_id, vtype), 0)
-                    if constr_flow == 0 and sp2025_flow == 0 and row["is_affected"]:                                                     
+                    sp_flow = sp_flow_results.get((path_id, vtype), 0)
+                    if constr_flow == 0 and sp_flow == 0 and row["is_affected"]:                                                     
                         continue 
                     record = AffectedOdPathRecord(
                         od_section_path_id=path_id,
@@ -417,7 +410,7 @@ class AffectedOdService(LoggerMixin):
                         map_version=row["version_yyyymm"],
                         vehicle_type=vtype,
                         construction_flow=constr_flow,
-                        same_period_2025_flow=sp2025_flow,
+                        same_period_2025_flow=sp_flow,
                     )
                     raw_records.append(record)
 
@@ -500,7 +493,7 @@ class AffectedOdService(LoggerMixin):
             result.status = "success"
             result.affectedOdCount = len(raw_records)
             result.constructionFlowAvailable = construction_flow_available
-            result.samePeriod2025FlowAvailable = same_period_2025_available
+            result.samePeriod2025FlowAvailable = same_period_available
             result.filteredOdPairs = filtered_od_pairs
             result.outputCsvPath = output_path
             result.errors = errors

@@ -63,26 +63,23 @@ _shared_topo_checker: Optional[TopologyChecker] = None
 CSV_COLUMNS = [
     "enid", "exid", "intervalgroup", "intervaltimegroup",
     "envehicleid", "exvehicleid", "entime", "extime",
-    "feevehicletype", "envehicletype",
+    "new_vehicletype",
 ]
 
 # Actual column order in the CSV file (for headerless files, positional mapping)
-# Header: exid,enid,intervalgroup,intervaltimegroup,envehicleid,exvehicleid,entime,extime,feevehicletype,exvehicleclass,envehicletype,envehicleclass
+# Header: exid,enid,intervalgroup,intervaltimegroup,envehicleid,exvehicleid,entime,extime,passid,new_vehicletype,exvehicleclass,envehicleclass,mediatype,new_distance,new_weight
 CSV_COLUMNS_IN_FILE_ORDER = [
     "exid", "enid", "intervalgroup", "intervaltimegroup",
     "envehicleid", "exvehicleid", "entime", "extime",
-    "feevehicletype", "envehicletype",
+    "new_vehicletype",
 ]
 
 
 def _resolve_vehicle_type(record: dict) -> str:
-    """车型取值：feevehicletype 非空则用，否则 envehicletype，都空返回 '0'"""
-    fee = record.get("feevehicletype", "").strip()
-    if fee:
-        return fee
-    en = record.get("envehicletype", "").strip()
-    if en:
-        return en
+    """车型取值：new_vehicletype 非空则用，为空返回 '0'"""
+    vt = record.get("new_vehicletype", "").strip()
+    if vt:
+        return vt
     return "0"
 
 

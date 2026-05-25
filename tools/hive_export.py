@@ -30,11 +30,12 @@ FIELDS = [
     "entime",
     "extime",
     "passid",
-    "feevehicletype",
+    "new_vehicletype",
     "exvehicleclass",
-    "envehicletype",
     "envehicleclass",
     "mediatype",
+    "new_distance",
+    "new_weight",
 ]
 BATCH_SIZE = 100_000
 

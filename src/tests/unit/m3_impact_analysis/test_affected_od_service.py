@@ -21,11 +21,11 @@ from unittest.mock import patch
 from src.modules.m3_impact_analysis.affected_od_service import (
     AffectedOdService,
     _parse_date,
-    _to_2025_same_period,
     _get_month_list,
     _dedup_by_latest_version,
     _mark_affected_sections,
 )
+from src.common.time_utils import to_same_period
 from src.modules.m3_impact_analysis.analysis_schema import (
     AffectedOdQueryParams,
     AffectedOdPathRecord,
@@ -58,27 +58,35 @@ class TestParseDate:
             _parse_date("")
 
 
-class TestTo2025SamePeriod:
-    """2025同期映射"""
+class TestToSamePeriod:
+    """同期映射 (参数化年份)"""
 
-    def test_normal_date(self):
-        assert _to_2025_same_period(date(2026, 3, 15)) == date(2025, 3, 15)
+    def test_normal_date_2025(self):
+        assert to_same_period(date(2026, 3, 15), 2025) == date(2025, 3, 15)
+
+    def test_normal_date_2024(self):
+        assert to_same_period(date(2026, 3, 15), 2024) == date(2024, 3, 15)
 
     def test_feb_28(self):
-        assert _to_2025_same_period(date(2024, 2, 28)) == date(2025, 2, 28)
+        assert to_same_period(date(2024, 2, 28), 2025) == date(2025, 2, 28)
 
     def test_feb_29_leap_year_maps_to_feb_28(self):
-        """闰年2月29日映射到2025年2月28日（2025非闰年）"""
-        result = _to_2025_same_period(date(2024, 2, 29))
+        """闰年2月29日映射到目标年2月28日（平年无2月29日）"""
+        result = to_same_period(date(2024, 2, 29), 2025)
         assert result == date(2025, 3, 1) - __import__("datetime").timedelta(days=1)
         assert result.month == 2
         assert result.day == 28
 
     def test_dec_31(self):
-        assert _to_2025_same_period(date(2026, 12, 31)) == date(2025, 12, 31)
+        assert to_same_period(date(2026, 12, 31), 2025) == date(2025, 12, 31)
 
     def test_jan_1(self):
-        assert _to_2025_same_period(date(2026, 1, 1)) == date(2025, 1, 1)
+        assert to_same_period(date(2026, 1, 1), 2025) == date(2025, 1, 1)
+
+    def test_cross_year_same_period(self):
+        """跨年映射：2026施工期 → 2024同期"""
+        assert to_same_period(date(2025, 12, 20), 2024) == date(2024, 12, 20)
+        assert to_same_period(date(2026, 1, 10), 2024) == date(2024, 1, 10)
 
 
 class TestGetMonthList:

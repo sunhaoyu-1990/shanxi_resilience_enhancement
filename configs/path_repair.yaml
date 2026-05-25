@@ -1,0 +1,22 @@
+path_repair:
+  topology_version: "202512"
+
+  # 路径修正参数
+  max_gap_search_window: 6        # 最大间隙搜索窗口（节点数）
+  max_detour_ratio: 2.0           # 最大绕行比阈值
+  backward_progress_threshold_m: 300  # 到终点距离反增判定阈值（米）
+  allow_uturn_count: 1            # 允许的最大掉头次数
+
+  # 往复路径过滤
+  remove_reciprocal_path: false    # 是否去除往复路径片段（A->B->A形式）
+
+  # 施工路段
+  construction_sections: []        # 施工收费单元列表（用|分隔）
+
+  # 输出控制
+  detail_geo: true                # 是否输出经纬度详情
+
+  # 质量评分阈值
+  high_confidence_min: 85
+  medium_confidence_min: 65
+  low_confidence_min: 40

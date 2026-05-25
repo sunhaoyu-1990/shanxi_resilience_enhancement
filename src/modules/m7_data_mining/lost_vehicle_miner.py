@@ -22,7 +22,7 @@ from src.modules.m7_data_mining.repository import M7Repository
 logger = get_logger(__name__)
 
 # 日表 CSV 中需要提取的列
-CSV_COLUMNS = ["enid", "exid", "exvehicleid", "envehicleid", "feevehicletype", "envehicletype"]
+CSV_COLUMNS = ["enid", "exid", "exvehicleid", "envehicleid", "new_vehicletype"]
 
 
 class LostVehicleMiner:
@@ -310,12 +310,10 @@ class LostVehicleMiner:
                 if not vehicleId:
                     continue
 
-                # 获取车型（优先 feevehicletype，为空则用 envehicletype）
+                # 获取车型（取 new_vehicletype）
                 vehicleType = ""
-                if "feevehicletype" in colIndices and colIndices["feevehicletype"] < len(row):
-                    vehicleType = row[colIndices["feevehicletype"]]
-                if not vehicleType and "envehicletype" in colIndices and colIndices["envehicletype"] < len(row):
-                    vehicleType = row[colIndices["envehicletype"]]
+                if "new_vehicletype" in colIndices and colIndices["new_vehicletype"] < len(row):
+                    vehicleType = row[colIndices["new_vehicletype"]]
 
 
                 # 1. enid/exid 格式直接匹配

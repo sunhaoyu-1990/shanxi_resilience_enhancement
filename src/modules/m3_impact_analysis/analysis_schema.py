@@ -20,6 +20,7 @@ class AffectedOdQueryParams(BaseModel):
     endDate: str = Field(..., description="施工结束日期 (YYYYMMDD)")
     minAffectedPathFlow: int = Field(default=0, description="受影响path单条流量阈值，construction_flow或same_period_2025_flow任一>该值才保留")
     minFlow: int = Field(default=0, description="OD对聚合总流量阈值，低于该值的OD下所有path全部去掉")
+    samePeriodYear: int = Field(default=2025, description="同期参考年份")
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -73,6 +74,7 @@ class MidTripExitParams(BaseModel):
     startDate: str = Field(..., description="施工开始日期 (YYYYMMDD)")
     endDate: str = Field(..., description="施工结束日期 (YYYYMMDD)")
     dataDir: str = Field(default="/home/shy/gaosu_data", description="CSV数据根目录")
+    samePeriodYear: int = Field(default=2025, description="同期参考年份")
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -82,7 +84,7 @@ class MidTripExitRecord(BaseModel):
     od_enid: str = Field(..., description="OD入口站ID")
     od_exid: str = Field(..., description="OD出口站ID")
     vehicle_id: str = Field(..., description="车牌号(exvehicleid)")
-    vehicle_type: str = Field(default="0", description="车型(feevehicletype非空取之，否则取envehicletype)")
+    vehicle_type: str = Field(default="0", description="车型(取自new_vehicletype)")
     trip1_enid: str = Field(..., description="第一次行程入口站")
     trip1_exid: str = Field(..., description="第一次行程出口站(中途下站)")
     trip1_intervalgroup: str = Field(default="", description="第一次行程路径")
@@ -148,6 +150,7 @@ class DetourRecordParams(BaseModel):
     dataDir: str = Field(default="/home/shy/gaosu_data", description="CSV数据根目录")
     maxSections: int = Field(default=5, description="OD分类：O/D到施工单元最短路径节点数上限")
     maxConstructionSections: int = Field(default=5, description="记录过滤：最短路径中施工段个数上限")
+    samePeriodYear: int = Field(default=2025, description="同期参考年份")
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -159,7 +162,7 @@ class DetourRecordRecord(BaseModel):
     record_enid: str = Field(..., description="记录入口站ID")
     record_exid: str = Field(..., description="记录出口站ID")
     vehicle_id: str = Field(..., description="车牌号(exvehicleid)")
-    vehicle_type: str = Field(default="0", description="车型(feevehicletype非空取之，否则取envehicletype)")
+    vehicle_type: str = Field(default="0", description="车型(取自new_vehicletype)")
     intervalgroup: str = Field(default="", description="记录路径")
     shortest_path: str = Field(default="", description="最短路径(节点|分隔)")
     construction_sections_in_path: str = Field(default="", description="最短路径中的施工段(|分隔)")
@@ -207,49 +210,104 @@ class DetourRecordResult(BaseModel):
 
 
 # ============================================================
-# 综合处理：流程1/2/3 输出数据合并汇总
+# 综合处理：动态测算汇总（步骤1-5）
 # ============================================================
 
 
 class ImpactSummaryRecord(BaseModel):
-    """影响分析综合汇总记录（流程1+2+3 合并）"""
+    """动态测算综合汇总记录（流程1+2+3 合并 + 派生计算）"""
     enid: str = Field(..., description="入口站ID")
     exid: str = Field(..., description="出口站ID")
-    section_od: Optional[str] = Field(default=None, description="路段级别OD（section_number排序后|拼接）")
     vehicle_type: str = Field(..., description="车型")
-    # 流程1 聚合 — 均值
-    avg_con_fee: float = Field(default=0.0, description="受影响path通行费均值(fee_yuan)")
-    avg_con_control_fee: float = Field(default=0.0, description="受影响path交控通行费均值(control_fee_yuan)")
-    avg_other_fee: float = Field(default=0.0, description="非受影响path通行费均值(fee_yuan)")
-    avg_other_control_fee: float = Field(default=0.0, description="非受影响path交控通行费均值(control_fee_yuan)")
-    # 流程1 聚合 — 流量求和
-    sp2025_con_flow: int = Field(default=0, description="受影响path的2025同期流量求和")
-    con_construction_flow: int = Field(default=0, description="受影响path的施工期流量求和")
-    sp2025_other_flow: int = Field(default=0, description="非受影响path的2025同期流量求和")
-    other_construction_flow: int = Field(default=0, description="非受影响path的施工期流量求和")
-    # 流程1 估算 — fee_yuan 系列
-    sp2025_con_fee: float = Field(default=0.0, description="avg_con_fee × sp2025_con_flow")
-    sp2025_other_fee: float = Field(default=0.0, description="avg_con_fee × sp2025_other_flow")
-    con_construction_fee: float = Field(default=0.0, description="avg_con_fee × con_construction_flow")
-    other_construction_fee: float = Field(default=0.0, description="avg_con_fee × other_construction_flow")
-    # 流程1 估算 — control_fee_yuan 系列
-    sp2025_con_control_fee: float = Field(default=0.0, description="avg_con_control_fee × sp2025_con_flow")
-    sp2025_other_control_fee: float = Field(default=0.0, description="avg_con_control_fee × sp2025_other_flow")
-    con_construction_control_fee: float = Field(default=0.0, description="avg_con_control_fee × con_construction_flow")
-    other_construction_control_fee: float = Field(default=0.0, description="avg_con_control_fee × other_construction_flow")
-    # 流程2 匹配 — 中途下站
-    mid_construction_flow: int = Field(default=0, description="中途下站施工期流量")
-    mid_same_period_2025_flow: int = Field(default=0, description="中途下站2025同期流量")
-    mid_loss_fee_yuan: Optional[float] = Field(default=None, description="中途下站施工期损失金额（元）")
-    mid_control_loss_fee_yuan: Optional[float] = Field(default=None, description="中途下站施工期交控损失金额（元）")
-    mid_sp2025_loss_fee_yuan: Optional[float] = Field(default=None, description="中途下站2025同期损失金额（元）")
-    mid_sp2025_control_loss_fee_yuan: Optional[float] = Field(default=None, description="中途下站2025同期交控损失金额（元）")
-    # 流程3 匹配 — 绕行
-    detour_construction_flow: float = Field(default=0.0, description="绕行施工期流量")
-    detour_same_period_2025_flow: float = Field(default=0.0, description="绕行2025同期流量")
-    detour_loss_fee_yuan: Optional[float] = Field(default=None, description="绕行施工期损失金额（元）")
-    detour_control_loss_fee_yuan: Optional[float] = Field(default=None, description="绕行施工期交控损失金额（元）")
-    detour_sp2025_loss_fee_yuan: Optional[float] = Field(default=None, description="绕行2025同期损失金额（元）")
-    detour_sp2025_control_loss_fee_yuan: Optional[float] = Field(default=None, description="绕行2025同期交控损失金额（元）")
+    section_od: Optional[str] = Field(default=None, description="路段级别OD（OD_num）")
+
+    # 步骤1: Flow1 透视 — 施工影响路径 (is_affected=True)
+    con_fee: float = Field(default=0.0, description="SUM fee_yuan where is_affected=True")
+    con_control_fee: float = Field(default=0.0, description="SUM control_fee_yuan where is_affected=True")
+    con_flow: int = Field(default=0, description="SUM construction_flow where is_affected=True")
+    con_sp2025_flow: int = Field(default=0, description="SUM same_period_2025_flow where is_affected=True")
+    con_length: int = Field(default=0, description="SUM total_length_meters where is_affected=True")
+    con_control_length: int = Field(default=0, description="SUM control_length_meters where is_affected=True")
+
+    # 步骤1: Flow1 透视 — 其他路径 (is_affected=False)
+    other_fee: float = Field(default=0.0, description="SUM fee_yuan where is_affected=False")
+    other_control_fee: float = Field(default=0.0, description="SUM control_fee_yuan where is_affected=False")
+    other_flow: int = Field(default=0, description="SUM construction_flow where is_affected=False")
+    other_sp2025_flow: int = Field(default=0, description="SUM same_period_2025_flow where is_affected=False")
+    other_length: int = Field(default=0, description="SUM total_length_meters where is_affected=False")
+    other_control_length: int = Field(default=0, description="SUM control_length_meters where is_affected=False")
+
+    # 步骤2: Flow2 中途上下站
+    mid_flow: float = Field(default=0.0, description="SUM construction_flow (flow2)")
+    mid_sp2025_flow: float = Field(default=0.0, description="SUM same_period_2025_flow (flow2)")
+    mid_loss_fee: float = Field(default=0.0, description="SUM loss_fee_yuan (flow2)")
+    mid_control_loss_fee: float = Field(default=0.0, description="SUM control_loss_fee_yuan (flow2)")
+    mid_unit_loss_fee: float = Field(default=0.0, description="损失通行费/流量")
+    mid_unit_control_loss_fee: float = Field(default=0.0, description="损失交控通行费/流量")
+
+    # 步骤2: Flow3 附近上下车
+    detour_flow: float = Field(default=0.0, description="SUM construction_flow (flow3)")
+    detour_sp2025_flow: float = Field(default=0.0, description="SUM same_period_2025_flow (flow3)")
+    detour_loss_fee: float = Field(default=0.0, description="SUM loss_fee_yuan (flow3)")
+    detour_control_loss_fee: float = Field(default=0.0, description="SUM control_loss_fee_yuan (flow3)")
+    detour_unit_loss_fee: float = Field(default=0.0, description="损失通行费/流量")
+    detour_unit_control_loss_fee: float = Field(default=0.0, description="损失交控通行费/流量")
+
+    # 步骤4: 派生计算
+    original_path_fee: float = Field(default=0.0, description="原路径通行车流费用(万元)")
+    ref_total_flow: int = Field(default=0, description="参考总流量")
+    unaffected_flow: int = Field(default=0, description="未收影响流量")
+    affected_flow: int = Field(default=0, description="受影响流量")
+    detour_flow_final: int = Field(default=0, description="绕行流量")
+    retained_nearby: int = Field(default=0, description="保留路径(附近上下站)")
+    retained_midtrip: int = Field(default=0, description="保留路径(中途上下站)")
+    lost_flow: int = Field(default=0, description="流失流量")
+    original_control_fee: float = Field(default=0.0, description="原交控通行费(万元)")
+    unaffected_control_fee: float = Field(default=0.0, description="未收影响交控通行费(万元)")
+    detour_control_fee_final: float = Field(default=0.0, description="绕行交控通行费(万元)")
+    retained_nearby_control_fee: float = Field(default=0.0, description="保留交控通行费(附近上下站)(万元)")
+    retained_midtrip_control_fee: float = Field(default=0.0, description="保留交控通行费(中途上下站)(万元)")
+    lost_control_fee: float = Field(default=0.0, description="流失交控通行费(万元)")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class OdsSummaryRecord(BaseModel):
+    """OD汇总表记录"""
+    enid: str = Field(..., description="入口站ID")
+    exid: str = Field(..., description="出口站ID")
+    ref_total_flow: int = Field(default=0, description="参考总流量")
+    unaffected_flow: int = Field(default=0, description="未收影响流量")
+    affected_flow: int = Field(default=0, description="受影响流量")
+    detour_flow_final: int = Field(default=0, description="绕行流量")
+    retained_nearby: int = Field(default=0, description="保留路径(附近上下站)")
+    retained_midtrip: int = Field(default=0, description="保留路径(中途上下站)")
+    lost_flow: int = Field(default=0, description="流失流量")
+    original_control_fee: float = Field(default=0.0, description="原交控通行费(万元)")
+    unaffected_control_fee: float = Field(default=0.0, description="未收影响交控通行费(万元)")
+    detour_control_fee_final: float = Field(default=0.0, description="绕行交控通行费(万元)")
+    retained_nearby_control_fee: float = Field(default=0.0, description="保留交控通行费(附近上下站)(万元)")
+    retained_midtrip_control_fee: float = Field(default=0.0, description="保留交控通行费(中途上下站)(万元)")
+    lost_control_fee: float = Field(default=0.0, description="流失交控通行费(万元)")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class SectionSummaryRecord(BaseModel):
+    """路段汇总表记录"""
+    section_od: str = Field(..., description="路段级别OD（OD_num）")
+    ref_total_flow: int = Field(default=0, description="参考总流量")
+    unaffected_flow: int = Field(default=0, description="未收影响流量")
+    affected_flow: int = Field(default=0, description="受影响流量")
+    detour_flow_final: int = Field(default=0, description="绕行流量")
+    retained_nearby: int = Field(default=0, description="保留路径(附近上下站)")
+    retained_midtrip: int = Field(default=0, description="保留路径(中途上下站)")
+    lost_flow: int = Field(default=0, description="流失流量")
+    original_control_fee: float = Field(default=0.0, description="原交控通行费(万元)")
+    unaffected_control_fee: float = Field(default=0.0, description="未收影响交控通行费(万元)")
+    detour_control_fee_final: float = Field(default=0.0, description="绕行交控通行费(万元)")
+    retained_nearby_control_fee: float = Field(default=0.0, description="保留交控通行费(附近上下站)(万元)")
+    retained_midtrip_control_fee: float = Field(default=0.0, description="保留交控通行费(中途上下站)(万元)")
+    lost_control_fee: float = Field(default=0.0, description="流失交控通行费(万元)")
 
     model_config = {"arbitrary_types_allowed": True}

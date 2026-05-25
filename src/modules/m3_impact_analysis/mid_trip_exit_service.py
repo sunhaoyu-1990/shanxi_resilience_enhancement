@@ -30,6 +30,7 @@ from src.modules.m3_impact_analysis.analysis_schema import (
 )
 from src.modules.m2_od_flow.csv_reader import iter_csv_batches, _detect_has_header
 from src.common.toll_calculator import calculate_toll_fee
+from src.common.time_utils import to_same_period
 
 logger = get_logger(__name__)
 
@@ -37,20 +38,17 @@ OUTPUT_DIR = "analysis_results"
 
 
 def _resolve_vehicle_type(record: dict) -> str:
-    """车型取值：feevehicletype 非空则用，否则 envehicletype，都空返回 '0'"""
-    fee = record.get("feevehicletype", "").strip()
-    if fee:
-        return fee
-    en = record.get("envehicletype", "").strip()
-    if en:
-        return en
+    """车型取值：new_vehicletype 非空则用，为空返回 '0'"""
+    vt = record.get("new_vehicletype", "").strip()
+    if vt:
+        return vt
     return "0"
 
 # CSV 需提取的列
 MID_TRIP_COLUMNS = [
     "exvehicleid", "enid", "exid",
     "intervalgroup", "entime", "extime",
-    "feevehicletype", "envehicletype",
+    "new_vehicletype",
 ]
 
 # CSV 输出列
@@ -70,6 +68,7 @@ MID_TRIP_FLOW_STAT_CSV_COLUMNS = [
     "construction_flow", "same_period_2025_flow",
     "loss_fee_yuan", "control_loss_fee_yuan",
     "sp2025_loss_fee_yuan", "sp2025_control_loss_fee_yuan",
+    "section_od",
 ]
 
 # 最大时间间隔
@@ -84,14 +83,6 @@ def _parse_date(dateStr: str) -> date:
 def _parse_time(timeStr: str) -> datetime:
     """解析 CSV 中的时间字符串"""
     return datetime.strptime(timeStr.strip(), "%Y-%m-%d %H:%M:%S")
-
-
-def _to_2025_same_period(d: date) -> date:
-    """将日期映射到2025同期"""
-    try:
-        return d.replace(year=2025)
-    except ValueError:
-        return date(2025, 3, 1) - timedelta(days=1)
 
 
 def _get_day_files(start: date, end: date, data_dir: str) -> list[tuple[date, str]]:
@@ -256,11 +247,11 @@ def _match_and_write(
     fee_version: Optional[str] = None,
     sql_runner=None,
     construction_flow_agg: Optional[dict[tuple[str, str, str], int]] = None,
-    sp2025_flow_agg: Optional[dict[tuple[str, str, str], int]] = None,
+    sp_flow_agg: Optional[dict[tuple[str, str, str], int]] = None,
     construction_loss_fee_agg: Optional[dict[tuple[str, str, str], float]] = None,
-    sp2025_loss_fee_agg: Optional[dict[tuple[str, str, str], float]] = None,
+    sp_loss_fee_agg: Optional[dict[tuple[str, str, str], float]] = None,
     construction_control_loss_fee_agg: Optional[dict[tuple[str, str, str], float]] = None,
-    sp2025_control_loss_fee_agg: Optional[dict[tuple[str, str, str], float]] = None,
+    sp_control_loss_fee_agg: Optional[dict[tuple[str, str, str], float]] = None,
 ) -> int:
     """
     合并前一日pending + 当日记录，匹配中途下站模式，即时写入CSV并累加流量统计和通行费
@@ -268,7 +259,7 @@ def _match_and_write(
     Args:
         construction_flow_agg: 施工期流量聚合字典 (od_enid, od_exid, vehicle_type) → count
         construction_loss_fee_agg: 施工期通行费聚合字典
-        sp2025_flow_agg: 2025同期流量聚合字典 (od_enid, od_exid, vehicle_type) → count
+        sp_flow_agg: 同流量聚合字典 (od_enid, od_exid, vehicle_type) → count
 
     Returns:
         匹配的记录数
@@ -394,12 +385,12 @@ def _match_and_write(
                 if construction_control_loss_fee_agg is not None and control_loss_fee is not None:
                     construction_control_loss_fee_agg[agg_key] += control_loss_fee
             else:
-                if sp2025_flow_agg is not None:
-                    sp2025_flow_agg[agg_key] += 1
-                if sp2025_loss_fee_agg is not None and loss_fee is not None:
-                    sp2025_loss_fee_agg[agg_key] += loss_fee
-                if sp2025_control_loss_fee_agg is not None and control_loss_fee is not None:
-                    sp2025_control_loss_fee_agg[agg_key] += control_loss_fee
+                if sp_flow_agg is not None:
+                    sp_flow_agg[agg_key] += 1
+                if sp_loss_fee_agg is not None and loss_fee is not None:
+                    sp_loss_fee_agg[agg_key] += loss_fee
+                if sp_control_loss_fee_agg is not None and control_loss_fee is not None:
+                    sp_control_loss_fee_agg[agg_key] += control_loss_fee
 
     return match_count
 
@@ -463,8 +454,8 @@ class MidTripExitService(LoggerMixin):
             # 确定日期范围
             startDate = _parse_date(params.startDate)
             endDate = _parse_date(params.endDate)
-            sp2025_start = _to_2025_same_period(startDate)
-            sp2025_end = _to_2025_same_period(endDate)
+            sp_start = to_same_period(startDate, params.samePeriodYear)
+            sp_end = to_same_period(endDate, params.samePeriodYear)
 
             # 输出文件
             os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -474,13 +465,13 @@ class MidTripExitService(LoggerMixin):
 
             # 流量统计聚合字典
             construction_flow_agg: dict[tuple[str, str, str], int] = defaultdict(int)
-            sp2025_flow_agg: dict[tuple[str, str, str], int] = defaultdict(int)
+            sp_flow_agg: dict[tuple[str, str, str], int] = defaultdict(int)
 
-            # 通行费聚合字典（分别累加施工期间和2025同期）
+            # 通行费聚合字典（分别累加施工期间和同期）
             construction_loss_fee_agg: dict[tuple[str, str, str], float] = defaultdict(float)
-            sp2025_loss_fee_agg: dict[tuple[str, str, str], float] = defaultdict(float)
+            sp_loss_fee_agg: dict[tuple[str, str, str], float] = defaultdict(float)
             construction_control_loss_fee_agg: dict[tuple[str, str, str], float] = defaultdict(float)
-            sp2025_control_loss_fee_agg: dict[tuple[str, str, str], float] = defaultdict(float)
+            sp_control_loss_fee_agg: dict[tuple[str, str, str], float] = defaultdict(float)
 
             total_scanned = 0
             total_matched_scanned = 0
@@ -494,7 +485,7 @@ class MidTripExitService(LoggerMixin):
                 # 处理两个期间
                 periods = [
                     ("construction", startDate, endDate),
-                    ("same_period_2025", sp2025_start, sp2025_end),
+                    (f"same_period_{params.samePeriodYear}", sp_start, sp_end),
                 ]
 
                 for period_label, period_start, period_end in periods:
@@ -568,11 +559,11 @@ class MidTripExitService(LoggerMixin):
                             fee_version=fee_version,
                             sql_runner=sql_runner,
                             construction_flow_agg=construction_flow_agg,
-                            sp2025_flow_agg=sp2025_flow_agg,
+                            sp_flow_agg=sp_flow_agg,
                             construction_loss_fee_agg=construction_loss_fee_agg,
-                            sp2025_loss_fee_agg=sp2025_loss_fee_agg,
+                            sp_loss_fee_agg=sp_loss_fee_agg,
                             construction_control_loss_fee_agg=construction_control_loss_fee_agg,
-                            sp2025_control_loss_fee_agg=sp2025_control_loss_fee_agg,
+                            sp_control_loss_fee_agg=sp_control_loss_fee_agg,
                         )
                         total_mid_trip += match_count
 
@@ -593,9 +584,9 @@ class MidTripExitService(LoggerMixin):
             # ====== 流量统计汇总 ======
             flow_stat_path: Optional[str] = None
             result_data = []
-            if construction_flow_agg or sp2025_flow_agg:
+            if construction_flow_agg or sp_flow_agg:
                 flow_stat_path = output_path.replace(".csv", "_flow_stat.csv")
-                all_keys = set(construction_flow_agg.keys()) | set(sp2025_flow_agg.keys())
+                all_keys = set(construction_flow_agg.keys()) | set(sp_flow_agg.keys())
 
                 with open(flow_stat_path, "w", newline="", encoding="utf-8") as f:
                     stat_writer = csv.DictWriter(f, fieldnames=MID_TRIP_FLOW_STAT_CSV_COLUMNS)
@@ -606,11 +597,11 @@ class MidTripExitService(LoggerMixin):
                             od_exid=od_exid,
                             vehicle_type=vtype,
                             construction_flow=construction_flow_agg.get((od_enid, od_exid, vtype), 0),
-                            same_period_2025_flow=sp2025_flow_agg.get((od_enid, od_exid, vtype), 0),
+                            same_period_2025_flow=sp_flow_agg.get((od_enid, od_exid, vtype), 0),
                             loss_fee_yuan=construction_loss_fee_agg.get((od_enid, od_exid, vtype), 0.0) if construction_loss_fee_agg else None,
                             control_loss_fee_yuan=construction_control_loss_fee_agg.get((od_enid, od_exid, vtype), 0.0) if construction_control_loss_fee_agg else None,
-                            sp2025_loss_fee_yuan=sp2025_loss_fee_agg.get((od_enid, od_exid, vtype), 0.0) if sp2025_loss_fee_agg else None,
-                            sp2025_control_loss_fee_yuan=sp2025_control_loss_fee_agg.get((od_enid, od_exid, vtype), 0.0) if sp2025_control_loss_fee_agg else None,
+                            sp2025_loss_fee_yuan=sp_loss_fee_agg.get((od_enid, od_exid, vtype), 0.0) if sp_loss_fee_agg else None,
+                            sp2025_control_loss_fee_yuan=sp_control_loss_fee_agg.get((od_enid, od_exid, vtype), 0.0) if sp_control_loss_fee_agg else None,
                         )
                         stat_writer.writerow(stat_record.model_dump())
                         result_data.append(stat_record)

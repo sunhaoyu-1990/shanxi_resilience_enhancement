@@ -19,7 +19,6 @@ from src.modules.m3_impact_analysis.mid_trip_exit_service import (
     MidTripExitService,
     _parse_date,
     _parse_time,
-    _to_2025_same_period,
     _get_day_files,
     _load_od_pairs_from_csv,
     _load_od_pairs_from_string,
@@ -33,6 +32,7 @@ from src.modules.m3_impact_analysis.mid_trip_exit_service import (
     MID_TRIP_CSV_COLUMNS,
     MID_TRIP_FLOW_STAT_CSV_COLUMNS,
 )
+from src.common.time_utils import to_same_period
 from src.modules.m3_impact_analysis.analysis_schema import (
     MidTripExitParams,
     MidTripExitFlowStatRecord,
@@ -69,15 +69,18 @@ class TestParseTime:
             _parse_time("invalid")
 
 
-class TestTo2025SamePeriod:
-    """2025同期映射"""
+class TestToSamePeriod:
+    """同期映射 (参数化年份)"""
 
     def test_normal(self):
-        assert _to_2025_same_period(date(2026, 6, 15)) == date(2025, 6, 15)
+        assert to_same_period(date(2026, 6, 15), 2025) == date(2025, 6, 15)
 
     def test_feb_29(self):
-        result = _to_2025_same_period(date(2024, 2, 29))
+        result = to_same_period(date(2024, 2, 29), 2025)
         assert result == date(2025, 2, 28)
+
+    def test_different_year(self):
+        assert to_same_period(date(2026, 6, 15), 2024) == date(2024, 6, 15)
 
 
 class TestGetDayFiles:
@@ -934,16 +937,13 @@ class TestMidTripExitServiceRun:
 class TestResolveVehicleType:
     """车型解析"""
 
-    def test_feevehicletype_non_empty(self):
-        assert _resolve_vehicle_type({"feevehicletype": "1", "envehicletype": "2"}) == "1"
+    def test_new_vehicletype_non_empty(self):
+        assert _resolve_vehicle_type({"new_vehicletype": "1"}) == "1"
 
-    def test_feevehicletype_empty_envehicletype_non_empty(self):
-        assert _resolve_vehicle_type({"feevehicletype": "", "envehicletype": "2"}) == "2"
+    def test_new_vehicletype_empty(self):
+        assert _resolve_vehicle_type({"new_vehicletype": ""}) == "0"
 
-    def test_both_empty(self):
-        assert _resolve_vehicle_type({"feevehicletype": "", "envehicletype": ""}) == "0"
-
-    def test_both_missing(self):
+    def test_missing_key(self):
         assert _resolve_vehicle_type({}) == "0"
 
 
@@ -1038,12 +1038,12 @@ class TestVehicleTypeInCsvOutput:
                 {
                     "exvehicleid": "V1", "enid": "EN1", "exid": "MID",
                     "intervalgroup": "", "entime": "2026-03-01 08:00:00", "extime": "2026-03-01 10:00:00",
-                    "feevehicletype": "1", "envehicletype": "2",
+                    "new_vehicletype": "1",
                 },
                 {
                     "exvehicleid": "V1", "enid": "MID2", "exid": "EX1",
                     "intervalgroup": "", "entime": "2026-03-01 12:00:00", "extime": "2026-03-01 14:00:00",
-                    "feevehicletype": "1", "envehicletype": "2",
+                    "new_vehicletype": "1",
                 },
             ],
         }
@@ -1063,20 +1063,20 @@ class TestVehicleTypeInCsvOutput:
         assert rows[0]["vehicle_type"] == "1"
         os.unlink(f.name)
 
-    def test_vehicle_type_from_envehicletype(self):
-        """feevehicletype为空时从envehicletype取"""
+    def test_vehicle_type_from_new_vehicletype(self):
+        """new_vehicletype为空时vehicle_type取'0'"""
         od_set = {("EN1", "EX1")}
         current = {
             "V1": [
                 {
                     "exvehicleid": "V1", "enid": "EN1", "exid": "MID",
                     "intervalgroup": "", "entime": "2026-03-01 08:00:00", "extime": "2026-03-01 10:00:00",
-                    "feevehicletype": "", "envehicletype": "3",
+                    "new_vehicletype": "",
                 },
                 {
                     "exvehicleid": "V1", "enid": "MID2", "exid": "EX1",
                     "intervalgroup": "", "entime": "2026-03-01 12:00:00", "extime": "2026-03-01 14:00:00",
-                    "feevehicletype": "", "envehicletype": "3",
+                    "new_vehicletype": "",
                 },
             ],
         }
@@ -1092,7 +1092,7 @@ class TestVehicleTypeInCsvOutput:
 
         with open(f.name, "r") as fh:
             rows = list(csv.DictReader(fh))
-        assert rows[0]["vehicle_type"] == "3"
+        assert rows[0]["vehicle_type"] == "0"
         os.unlink(f.name)
 
 
@@ -1112,12 +1112,12 @@ class TestFlowAggregation:
                 {
                     "exvehicleid": "V1", "enid": "EN1", "exid": "MID",
                     "intervalgroup": "", "entime": "2026-03-01 08:00:00", "extime": "2026-03-01 10:00:00",
-                    "feevehicletype": "1", "envehicletype": "2",
+                    "new_vehicletype": "1",
                 },
                 {
                     "exvehicleid": "V1", "enid": "MID2", "exid": "EX1",
                     "intervalgroup": "", "entime": "2026-03-01 12:00:00", "extime": "2026-03-01 14:00:00",
-                    "feevehicletype": "1", "envehicletype": "2",
+                    "new_vehicletype": "1",
                 },
             ],
         }
@@ -1150,12 +1150,12 @@ class TestFlowAggregation:
                 {
                     "exvehicleid": "V1", "enid": "EN1", "exid": "MID",
                     "intervalgroup": "", "entime": "2026-03-01 08:00:00", "extime": "2026-03-01 10:00:00",
-                    "feevehicletype": "2", "envehicletype": "1",
+                    "new_vehicletype": "2",
                 },
                 {
                     "exvehicleid": "V1", "enid": "MID2", "exid": "EX1",
                     "intervalgroup": "", "entime": "2026-03-01 12:00:00", "extime": "2026-03-01 14:00:00",
-                    "feevehicletype": "2", "envehicletype": "1",
+                    "new_vehicletype": "2",
                 },
             ],
         }
@@ -1188,24 +1188,24 @@ class TestFlowAggregation:
                 {
                     "exvehicleid": "V1", "enid": "EN1", "exid": "MID",
                     "intervalgroup": "", "entime": "2026-03-01 08:00:00", "extime": "2026-03-01 10:00:00",
-                    "feevehicletype": "1", "envehicletype": "",
+                    "new_vehicletype": "1",
                 },
                 {
                     "exvehicleid": "V1", "enid": "MID2", "exid": "EX1",
                     "intervalgroup": "", "entime": "2026-03-01 12:00:00", "extime": "2026-03-01 14:00:00",
-                    "feevehicletype": "1", "envehicletype": "",
+                    "new_vehicletype": "1",
                 },
             ],
             "V2": [
                 {
                     "exvehicleid": "V2", "enid": "EN1", "exid": "MID",
                     "intervalgroup": "", "entime": "2026-03-01 09:00:00", "extime": "2026-03-01 11:00:00",
-                    "feevehicletype": "2", "envehicletype": "",
+                    "new_vehicletype": "2",
                 },
                 {
                     "exvehicleid": "V2", "enid": "MID2", "exid": "EX1",
                     "intervalgroup": "", "entime": "2026-03-01 13:00:00", "extime": "2026-03-01 15:00:00",
-                    "feevehicletype": "2", "envehicletype": "",
+                    "new_vehicletype": "2",
                 },
             ],
         }

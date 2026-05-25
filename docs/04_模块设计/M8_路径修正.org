@@ -1,0 +1,183 @@
+#+TITLE: M8 路径修正与折返识别模块设计
+#+STARTUP: overview
+#+OPTIONS: toc:2 num:t
+
+* 1. 模块定位
+
+M8 负责将带噪声的原始通行路径（raw_path）在路网拓扑图上进行路径重建，修正节点缺失、非法节点、相邻断裂等问题，并计算路径质量指标（绕行比、折返指数、置信度）。
+
+该模块独立于 M0-M7 流水线，作为独立工具开发，后续验证通过后决定是否融合到 M2 interval_fixer 或 M4 路径优化中。
+
+* 2. 核心思想
+
+将路径修正理解为：
+
+#+begin_quote
+带噪声观测路径在有向路网拓扑图上的路径重建问题。
+#+end_quote
+
+| 信息 | 可信度 | 作用 |
+|------+--------+------|
+| enid/exid | 高 | 起终点强约束 |
+| 拓扑关系表 | 高 | 判断路径合法性、补全缺失段 |
+| raw_path | 中低 | 观测证据，可能缺失/乱序/重复/混入错误节点 |
+| 经纬度 | 中高 | 路径质量校验、折返识别 |
+
+* 3. 与现有代码的关系
+
+- **复用 M2 TopologyChecker 思路**：M8 封装了更完整的 =RoadGraph= 类，同样基于 pgRouting SQL 实现最短路径查询
+- **复用已有 pgRouting 基础设施**：=find_shortest_path_pgr()=、=find_k_shortest_paths_pgr()=
+- **复用 =dwd_tom_noderelation=**：拓扑边表（20,130条边）
+- **复用 =dwd_section_path=**：节点经纬度信息
+- **独立于 M0-M7**：不依赖其他模块运行结果
+
+* 4. 开发阶段
+
+**V1（当前版本）**：相邻补全 + 异常跳点跳过
+- 遍历相邻节点对，有直接边则保留
+- 不可达则用最短路径补全
+- 连续不可达则在后续窗口中寻找可达节点
+- 输出修正路径 + 经纬度 + 基础质量指标
+
+**V2（后续）**：可信锚点 + 分段 K 最短路 + LCS 匹配
+
+**V3（后续）**：局部窗口重排 + 起终点映射表 + 可视化
+
+* 5. 模块结构
+
+#+begin_src
+src/modules/m8_path_repair/
+├── __init__.py          # 包初始化
+├── schema.py            # Pydantic 数据模型
+├── service.py           # 业务编排层（CSV 批量处理）
+├── checks.py            # 数据校验
+└── core/                # 算法核心子包
+    ├── graph.py         # 图模型 + 拓扑加载
+    ├── normalizer.py    # 原始路径标准化
+    ├── repair.py        # V1 核心修正逻辑
+    ├── geo.py           # 经纬度匹配
+    ├── metrics.py       # 折返指标 + 质量评分
+    └── pipeline.py      # 单条路径修正主入口
+
+src/jobs/run_m8_path_repair.py  # CLI 入口
+configs/path_repair.yaml        # 配置文件
+sql/ddl/dws/create_dws_path_repair_result.sql  # 结果表 DDL
+#+end_src
+
+* 6. 核心算法流程
+
+**V1 修正策略**：
+
+#+begin_example
+1. 解析 raw_path → 节点列表
+2. 连续重复去重
+3. 过滤非法节点（拓扑中不存在的）
+4. 确保起终点在路径中
+5. 遍历相邻节点对 (A, B)：
+   a. A→B 有直接边 → 保留
+   b. A→B 不可达但 shortest_path(A,B) 存在 → 补全
+   c. A→B 不可达 → 在后续 max_gap_window 个节点中找可达的
+   d. 全部不可达 → 标记失败，跳过
+6. 匹配经纬度
+7. 计算折返指标 + 质量评分
+8. 输出结果
+#+end_example
+
+* 7. 折返指标
+
+| 指标 | 说明 |
+|------+------|
+| repeated_node_count | 路径中重复出现的节点数量 |
+| reverse_edge_count | 反向边数量（A→B 后又 B→A） |
+| backward_progress_count | 到终点距离反增次数 |
+| backward_progress_distance | 反增累计距离（米） |
+| u_turn_count | 几何掉头次数（连续三点夹角 ≥ 150°） |
+| detour_ratio | 绕行比 = 修正路径长度 / 起终点最短路长度 |
+| backtrack_index | 综合折返指数 0-100（越高越严重） |
+
+**综合折返指数公式**：
+
+#+begin_example
+BTI = 30 * reverse_score + 25 * backward_score + 20 * repeat_score
+    + 15 * uturn_score + 10 * detour_score
+#+end_example
+
+| BTI 范围 | 判断 |
+|----------+------|
+| 0-20 | 路径正常，基本无折返 |
+| 20-40 | 轻微异常，可能有一次掉头 |
+| 40-60 | 明显异常，需要复核 |
+| >60 | 多次折返或修正失败概率高 |
+
+* 8. 修正状态
+
+| 状态 | 含义 |
+|------+------|
+| HIGH_CONFIDENCE | 修正置信度 ≥ 85 |
+| MEDIUM_CONFIDENCE | 修正置信度 65-85 |
+| LOW_CONFIDENCE | 修正置信度 40-65 |
+| NEED_MANUAL_REVIEW | 修正置信度 < 40 |
+| FAILED_NO_PATH | 起终点不可达 |
+| FAILED_EMPTY_PATH | 原始路径为空 |
+| FAILED_AMBIGUOUS_SE | 起终点候选歧义过大（V2 实现） |
+
+* 9. 输出表
+
+=dws_path_repair_result=（DWS 层）
+- 主键：record_id
+- 粒度：每条通行记录一条结果
+- 包含修正路径、质量指标、折返指标、置信度、修正详情（JSONB）
+
+* 10. 测试覆盖
+
+单元测试使用 Mock 图（小型有向图），不依赖真实数据库：
+- =test_normalizer.py=：路径标准化（拆分、去重、过滤）
+- =test_repair_v1.py=：V1 核心修正（正常/缺失/非法/断裂路径）
+- =test_metrics.py=：折返指标、方位角计算、质量评分
+- =test_geo.py=：经纬度匹配
+- =test_pipeline.py=：端到端集成测试
+
+* 11. CLI 用法
+
+#+begin_src bash
+# 基本用法
+uv run run-m8-path-repair \
+    --input-csv data/raw_paths.csv \
+    --output-csv outputs/repaired_paths.csv
+
+# 限制处理条数（调试用）
+uv run run-m8-path-repair \
+    --input-csv data/raw_paths.csv \
+    --output-csv outputs/repaired_paths.csv \
+    --limit 100
+
+# 自定义拓扑版本
+uv run run-m8-path-repair \
+    --input-csv data/raw_paths.csv \
+    --output-csv outputs/repaired_paths.csv \
+    --topology-version 202512
+#+end_src
+
+* 12. 输入 CSV 格式
+
+#+begin_src csv
+record_id,enid,exid,raw_path
+001,A,B,A|C|B|D
+002,A,E,A|B|X|D|E
+#+end_src
+
+* 13. 配置参数
+
+配置文件：=configs/path_repair.yaml=
+
+| 参数 | 默认值 | 说明 |
+|------+--------+------|
+| topology_version | 202512 | 拓扑数据版本 |
+| max_gap_search_window | 6 | 最大间隙搜索窗口（节点数） |
+| max_detour_ratio | 2.0 | 最大绕行比阈值 |
+| backward_progress_threshold_m | 300 | 到终点距离反增判定阈值（米） |
+| allow_uturn_count | 1 | 允许的最大掉头次数 |
+| detail_geo | true | 是否输出经纬度详情 |
+| high_confidence_min | 85 | 高置信度最低分 |
+| medium_confidence_min | 65 | 中置信度最低分 |
+| low_confidence_min | 40 | 低置信度最低分 |

@@ -300,3 +300,11 @@ def now_date() -> date:
 def now_datetime() -> datetime:
   """获取当前日期时间"""
   return datetime.now()
+
+
+def to_same_period(d: date, year: int) -> date:
+    """将施工日期映射到指定同期年份（处理2月29日等边界）"""
+    try:
+        return d.replace(year=year)
+    except ValueError:
+        return date(year, 3, 1) - timedelta(days=1)

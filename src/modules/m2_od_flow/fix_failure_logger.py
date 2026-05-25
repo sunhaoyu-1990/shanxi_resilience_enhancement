@@ -6,7 +6,7 @@ intervalgroup 修复失败记录器
 
 CSV 字段: enid, exid, intervalgroup, intervaltimegroup,
           envehicleid, exvehicleid, entime, extime,
-          feevehicletype, envehicletype, failure_reason
+          new_vehicletype, failure_reason
 """
 
 import csv
@@ -26,8 +26,7 @@ FAILURE_CSV_HEADER = [
     "exvehicleid",
     "entime",
     "extime",
-    "feevehicletype",
-    "envehicletype",
+    "new_vehicletype",
     "failure_reason",
 ]
 
@@ -73,8 +72,7 @@ class FixFailureLogger:
             record.get("exvehicleid", ""),
             record.get("entime", ""),
             record.get("extime", ""),
-            record.get("feevehicletype", ""),
-            record.get("envehicletype", ""),
+            record.get("new_vehicletype", ""),
             reason,
         ]
         self._writer.writerow(row)

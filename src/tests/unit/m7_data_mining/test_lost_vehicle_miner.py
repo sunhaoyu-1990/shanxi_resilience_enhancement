@@ -69,7 +69,7 @@ class TestScanSingleFile:
 
     def _create_csv(self, tmpdir, rows, header=None):
         if header is None:
-            header = ["exid", "enid", "exvehicleid", "envehicleid", "feevehicletype"]
+            header = ["exid", "enid", "exvehicleid", "envehicleid", "new_vehicletype"]
         filePath = os.path.join(tmpdir, "test.csv")
         with open(filePath, "w", newline="") as f:
             writer = csv.writer(f)

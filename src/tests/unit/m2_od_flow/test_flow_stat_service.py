@@ -195,7 +195,7 @@ class TestProcessBatchDedup:
             "enid": "E1", "exid": "X1",
             "intervalgroup": "S1|S2|S1|S3",
             "intervaltimegroup": "2026-03-15 10:10:00|2026-03-15 10:20:00|2026-03-15 10:30:00|2026-03-15 10:40:00",
-            "feevehicletype": "1",
+            "new_vehicletype": "1",
         }]
         entries = service._process_batch(batch)
         s1_10_keys = [k for k in service._flow_agg if k[0] == "S1" and k[2] == "2026-03-15 10:00:00"]
@@ -210,7 +210,7 @@ class TestProcessBatchDedup:
             "enid": "E1", "exid": "X1",
             "intervalgroup": "S1|S2",
             "intervaltimegroup": "2026-03-15 09:50:00|2026-03-15 10:10:00",
-            "feevehicletype": "1",
+            "new_vehicletype": "1",
         }]
         entries = service._process_batch(batch)
         assert entries >= 1
@@ -235,7 +235,7 @@ class TestProcessBatchDedup:
             "enid": "E1", "exid": "X1",
             "intervalgroup": "S1|S2",
             "intervaltimegroup": "|",
-            "feevehicletype": "1",
+            "new_vehicletype": "1",
         }]
         entries = service._process_batch(batch)
         assert entries == 0
@@ -248,10 +248,10 @@ class TestProcessBatchDedup:
         batch = [
             {"enid": "E1", "exid": "X1", "intervalgroup": "S1|S2",
              "intervaltimegroup": "2026-03-15 10:05:00|2026-03-15 10:15:00",
-             "feevehicletype": "1"},
+             "new_vehicletype": "1"},
             {"enid": "E1", "exid": "X1", "intervalgroup": "S1|S2",
              "intervaltimegroup": "2026-03-15 10:25:00|2026-03-15 10:35:00",
-             "feevehicletype": "1"},
+             "new_vehicletype": "1"},
         ]
         entries = service._process_batch(batch)
         s1_key = ("S1", 10, "2026-03-15 10:00:00", "1")
@@ -633,16 +633,16 @@ class TestColumnConstants:
         assert CSV_COLUMNS_IN_FILE_ORDER[0] == "exid"
         assert CSV_COLUMNS_IN_FILE_ORDER[1] == "enid"
 
-    def test_both_have_10_columns(self):
-        """两种列表都包含10列"""
-        assert len(CSV_COLUMNS) == 10
-        assert len(CSV_COLUMNS_IN_FILE_ORDER) == 10
+    def test_both_have_9_columns(self):
+        """两种列表都包含9列"""
+        assert len(CSV_COLUMNS) == 9
+        assert len(CSV_COLUMNS_IN_FILE_ORDER) == 9
 
     def test_all_expected_columns_present(self):
         """所有期望的列都存在"""
         expected = {"enid", "exid", "intervalgroup", "intervaltimegroup",
                     "envehicleid", "exvehicleid", "entime", "extime",
-                    "feevehicletype", "envehicletype"}
+                    "new_vehicletype"}
         assert set(CSV_COLUMNS) == expected
         assert set(CSV_COLUMNS_IN_FILE_ORDER) == expected
 
@@ -654,29 +654,24 @@ class TestColumnConstants:
 class TestResolveVehicleType:
     """车型取值逻辑测试"""
 
-    def test_feevehicletype_non_empty(self):
-        """feevehicletype 非空返回其值"""
-        record = {"feevehicletype": "1", "envehicletype": "2"}
+    def test_new_vehicletype_non_empty(self):
+        """new_vehicletype 非空返回其值"""
+        record = {"new_vehicletype": "1"}
         assert _resolve_vehicle_type(record) == "1"
 
-    def test_feevehicletype_empty_falls_back_to_envehicletype(self):
-        """feevehicletype 为空时回退到 envehicletype"""
-        record = {"feevehicletype": "", "envehicletype": "2"}
-        assert _resolve_vehicle_type(record) == "2"
-
-    def test_both_empty_returns_zero(self):
-        """两者都为空返回 '0'"""
-        record = {"feevehicletype": "", "envehicletype": ""}
+    def test_new_vehicletype_empty_returns_zero(self):
+        """new_vehicletype 为空返回 '0'"""
+        record = {"new_vehicletype": ""}
         assert _resolve_vehicle_type(record) == "0"
 
-    def test_both_missing_returns_zero(self):
-        """两个 key 都不存在返回 '0'"""
+    def test_missing_key_returns_zero(self):
+        """key 不存在返回 '0'"""
         record = {}
         assert _resolve_vehicle_type(record) == "0"
 
     def test_whitespace_stripped(self):
         """前后空白被去除"""
-        record = {"feevehicletype": "  3  ", "envehicletype": "  4  "}
+        record = {"new_vehicletype": "  3  "}
         assert _resolve_vehicle_type(record) == "3"
 
     def test_different_vehicle_types_separate_aggregation(self):

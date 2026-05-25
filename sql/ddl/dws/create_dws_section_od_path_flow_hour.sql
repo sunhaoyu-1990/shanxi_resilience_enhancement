@@ -61,6 +61,6 @@ COMMENT ON COLUMN {{table_name}}.od_section_path_id IS
 COMMENT ON COLUMN {{table_name}}.stat_hour IS
     '统计小时(带日期)，如 2026-03-01 12:00:00 代表12:00~13:00的流量，取自修复后intervaltimegroup中该收费单元对应时间截断到小时';
 COMMENT ON COLUMN {{table_name}}.vehicle_type IS
-    '车型编码，取自feevehicletype(非空时)或envehicletype，均为空时为"0"';
+    '车型编码，取自new_vehicletype，为空时为"0"';
 COMMENT ON COLUMN {{table_name}}.flow_cnt IS
     '通行流量（自然车辆数），同一记录内相同(section_id,hour)只计1次';
