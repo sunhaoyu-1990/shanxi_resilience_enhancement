@@ -1,0 +1,47 @@
+# M9 施工锚点聚合模块配置
+# 基于拓扑施工门户与全局锚点窗口去重的 OD-path 聚合算法
+
+construction_anchor_path_aggregation:
+  # path 解析配置
+  path:
+    delimiter: "|"
+    remove_empty_unit: true
+
+  # 施工片区拆分配置
+  component_split:
+    mode: weak_connectivity
+    min_component_unit_count: 1
+
+  # 局部施工窗口配置
+  construction_window:
+    enable_portal_windows: true
+    enable_path_hit_windows: true
+    min_path_hit_flow: 1
+    min_path_hit_count: 1
+    max_windows_per_component: 200
+
+  # 锚点外扩配置
+  anchor_expand:
+    max_expand_level: 5
+    stop_at_first_valid: true
+
+  # 有效锚点条件配置
+  valid_anchor:
+    min_pass_flow: 1
+    min_bypass_flow: 1
+    min_pass_path_count: 1
+    min_bypass_path_count: 1
+
+  # 全局唯一归属配置
+  global_assignment:
+    unique_assignment: true
+    priority:
+      - min_level
+      - covered_unit_count
+      - stable_key
+
+  # 输出配置
+  output:
+    keep_component_table: true
+    keep_construction_window_table: true
+    keep_path_assignment_detail: true
