@@ -1,3 +1,8 @@
+---
+name: shanxi-resilience-pgrouting
+description: 陕交控项目专用 pgRouting 路网优化工具 - 基于 PostgreSQL + PostGIS + pgRouting 构建高速路网拓扑，支持最短路径、Top N 路径、排除节点查询等高性能路径分析功能
+---
+
 # 陕交控项目 - pgRouting 路网拓扑优化 Skill
 
 ## 前置必读

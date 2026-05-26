@@ -170,51 +170,7 @@ def main():
         sys.exit(0)
 
     # ============================================================
-    # 流程3：绕行记录检测
-    # ============================================================
-    print("\n" + "=" * 60)
-    print("流程3：绕行记录检测")
-    print("=" * 60)
-
-    params3 = DetourRecordParams(
-        sectionIds=args.section_ids,
-        odPairsList=result1.filteredOdPairs,
-        startDate=args.start_date,
-        endDate=args.end_date,
-        dataDir=args.data_dir,
-        maxSections=args.max_sections,
-        maxConstructionSections=args.max_construction_sections,
-        samePeriodYear=args.same_period_year,
-    )
-
-    service3 = DetourRecordService()
-    result3, result3_data = service3.run(params3, output_path=args.output_detour)
-
-    print(f"状态: {result3.status}")
-    print(f"扫描总记录数: {result3.totalRecordsScanned:,}")
-    print(f"预过滤记录数: {result3.prefilteredRecords:,}")
-    print(f"绕行记录数: {result3.detourRecordCount}")
-    print(f"  找D判定O: {result3.sameDestDiffOriginCount}")
-    print(f"  找O判定D: {result3.sameOriginDiffDestCount}")
-    print(f"处理天数: {result3.daysProcessed}")
-    print(f"输出文件: {result3.outputCsvPath}")
-    print(f"耗时: {result3.executionTime:.2f}s")
-
-    if result3.status != "success":
-        print("\n流程3失败，终止流程2")
-        sys.exit(1)
-
-    # 流程3后处理：添加 section_od 并重写 flow_stat CSV
-    print("添加路段级别OD (section_od)...")
-    section_od_matcher.enrich_records(
-        result3_data, "od_enid", "od_exid", dataDate=args.start_date,
-    )
-    section_od_matcher.rewrite_csv_with_section_od(
-        result3.flowStatCsvPath, result3_data, DETOUR_FLOW_STAT_CSV_COLUMNS,
-    )
-
-    # ============================================================
-    # 流程2：中途下站检测
+    # 流程2：中途下站检测（必须先执行，因为流程3需要排除集合）
     # ============================================================
     print("\n" + "=" * 60)
     print("流程2：中途下站检测")
@@ -247,6 +203,70 @@ def main():
     )
     section_od_matcher.rewrite_csv_with_section_od(
         result2.flowStatCsvPath, result2_data, MID_TRIP_FLOW_STAT_CSV_COLUMNS,
+    )
+
+    # 构建排除集合：流程2已判定的中途下站车辆记录，不能再参与流程3检测
+    # 排除 key: (vehicle_id, entime) - 同一辆车在同一个 entime 只能从同一个站上高速
+    excluded_vehicle_records: set[tuple[str, str]] = set()
+    print("构建流程2中途下站排除集合...")
+    if os.path.exists(result2.outputCsvPath):
+        with open(result2.outputCsvPath, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                vehicle_id = row.get("vehicle_id", "").strip()
+                trip1_entime = row.get("trip1_entime", "").strip()
+                trip2_entime = row.get("trip2_entime", "").strip()
+                if vehicle_id and trip1_entime:
+                    excluded_vehicle_records.add((vehicle_id, trip1_entime))
+                if vehicle_id and trip2_entime:
+                    excluded_vehicle_records.add((vehicle_id, trip2_entime))
+        print(f"  排除集合大小: {len(excluded_vehicle_records)} 条记录")
+    else:
+        print(f"  警告: 流程2输出文件不存在 {result2.outputCsvPath}，跳过排除集合构建")
+
+    # ============================================================
+    # 流程3：绕行记录检测
+    # ============================================================
+    print("\n" + "=" * 60)
+    print("流程3：绕行记录检测")
+    print("=" * 60)
+
+    params3 = DetourRecordParams(
+        sectionIds=args.section_ids,
+        odPairsList=result1.filteredOdPairs,
+        startDate=args.start_date,
+        endDate=args.end_date,
+        dataDir=args.data_dir,
+        maxSections=args.max_sections,
+        maxConstructionSections=args.max_construction_sections,
+        samePeriodYear=args.same_period_year,
+        excluded_vehicle_records=excluded_vehicle_records,
+    )
+
+    service3 = DetourRecordService()
+    result3, result3_data = service3.run(params3, output_path=args.output_detour)
+
+    print(f"状态: {result3.status}")
+    print(f"扫描总记录数: {result3.totalRecordsScanned:,}")
+    print(f"预过滤记录数: {result3.prefilteredRecords:,}")
+    print(f"绕行记录数: {result3.detourRecordCount}")
+    print(f"  找D判定O: {result3.sameDestDiffOriginCount}")
+    print(f"  找O判定D: {result3.sameOriginDiffDestCount}")
+    print(f"处理天数: {result3.daysProcessed}")
+    print(f"输出文件: {result3.outputCsvPath}")
+    print(f"耗时: {result3.executionTime:.2f}s")
+
+    if result3.status != "success":
+        print("\n流程3失败，终止流程2")
+        sys.exit(1)
+
+    # 流程3后处理：添加 section_od 并重写 flow_stat CSV
+    print("添加路段级别OD (section_od)...")
+    section_od_matcher.enrich_records(
+        result3_data, "od_enid", "od_exid", dataDate=args.start_date,
+    )
+    section_od_matcher.rewrite_csv_with_section_od(
+        result3.flowStatCsvPath, result3_data, DETOUR_FLOW_STAT_CSV_COLUMNS,
     )
 
     # ============================================================

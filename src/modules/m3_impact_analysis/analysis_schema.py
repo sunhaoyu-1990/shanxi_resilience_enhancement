@@ -151,6 +151,10 @@ class DetourRecordParams(BaseModel):
     maxSections: int = Field(default=5, description="OD分类：O/D到施工单元最短路径节点数上限")
     maxConstructionSections: int = Field(default=5, description="记录过滤：最短路径中施工段个数上限")
     samePeriodYear: int = Field(default=2025, description="同期参考年份")
+    excluded_vehicle_records: Optional[set[tuple[str, str]]] = Field(
+        default=None,
+        description="排除的车辆记录集合 {(vehicle_id, entime), ...}，这些记录已被流程2使用，不能再参与流程3检测"
+    )
 
     model_config = {"arbitrary_types_allowed": True}
 

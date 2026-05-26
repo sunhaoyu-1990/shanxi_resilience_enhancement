@@ -56,7 +56,7 @@ def _resolve_vehicle_type(record: dict) -> str:
 # CSV 需提取的列
 DETOUR_COLUMNS = [
     "exvehicleid", "enid", "exid", "intervalgroup",
-    "new_vehicletype",
+    "new_vehicletype", "entime",
 ]
 
 # CSV 输出列
@@ -637,6 +637,12 @@ class DetourRecordService(LoggerMixin):
                                 rec_exid = record.get("exid", "")
                                 if rec_enid not in enid_filter_set and rec_exid not in exid_filter_set:
                                     continue
+
+                                # 排除检查：这条记录是否已被流程2（中途下站检测）使用
+                                record_key = (record.get("exvehicleid", ""), record.get("entime", ""))
+                                if params.excluded_vehicle_records and record_key in params.excluded_vehicle_records:
+                                    continue  # 跳过，不参与流程3检测
+
                                 day_prefiltered += 1
 
                                 vehicle_type = _resolve_vehicle_type(record)

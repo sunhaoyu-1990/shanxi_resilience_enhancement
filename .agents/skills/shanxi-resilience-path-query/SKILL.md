@@ -1,3 +1,8 @@
+---
+name: shanxi-resilience-path-query
+description: 陕交控项目专用路网路径查询工具 - 提供相邻节点查询、最短路径、Top N 替代路径、排除节点查询等功能，支持递归 CTE 和 pgRouting 两种实现方式
+---
+
 # 陕交控项目 - 路网路径查询 Skill
 
 ## 前置必读
